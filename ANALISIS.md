@@ -29,6 +29,8 @@ automatico por email y gobierno de permisos por usuario.
 - SQLite: almacenamiento local de credenciales cifradas.
 - Plotly: graficos para tendencias, comparaciones y rankings.
 - Streamlit: interfaz web local para demo en vivo.
+- FastAPI: backend HTTP para conectar la UI Next con el agente Python.
+- Next.js + React: nueva interfaz web preparada para Vercel.
 - pytest: pruebas de regresion de las consultas principales.
 - Ruff: linting y validacion PEP8.
 
@@ -61,20 +63,24 @@ Providers soportados:
   presentacion ejecutiva.
 - Fallback deterministico: util para pruebas automatizadas y diagnostico cuando
   no hay provider configurado.
+- Frontend por capas: Next solo presenta y orquesta llamadas HTTP; Python sigue
+  siendo la capa de dominio analitico.
 
 ## Logica del Agente
 
 ```mermaid
 flowchart TD
-    A[Usuario pregunta en lenguaje natural] --> B[Streamlit / CLI]
-    B --> C[Seleccion de provider y modelo]
-    C --> D[CredentialStore lee API key cifrada]
-    D --> E[Factory LangChain crea ChatModel]
-    E --> F[LangGraph inicia workflow]
-    F --> G[Nodo plan: LLM genera plan JSON]
-    G --> H[Nodo execute: herramientas pandas calculan evidencia]
-    H --> I[Nodo respond: LLM redacta respuesta final]
-    I --> J[Respuesta + tabla + grafico + sugerencias]
+    A[Usuario pregunta en lenguaje natural] --> B[Next React UI]
+    B --> C[Next API proxy]
+    C --> D[FastAPI backend]
+    D --> E[Seleccion de provider y modelo]
+    E --> F[CredentialStore lee API key cifrada]
+    F --> G[Factory LangChain crea ChatModel]
+    G --> H[LangGraph inicia workflow]
+    H --> I[Nodo plan: LLM genera plan JSON]
+    I --> J[Nodo execute: herramientas pandas calculan evidencia]
+    J --> K[Nodo respond: LLM redacta respuesta final]
+    K --> L[Respuesta + tabla + visual + sugerencias]
 ```
 
 ## Modulos
@@ -98,9 +104,14 @@ flowchart TD
 - `rappi_intelligence.insights`: generador de anomalias, tendencias
   preocupantes, benchmarking, correlaciones y oportunidades.
 - `rappi_intelligence.reporting`: render de reportes Markdown/HTML.
+- `rappi_intelligence.api`: API FastAPI para el frontend Next.
 - `rappi_intelligence.cli`: interfaz de linea de comandos para demo, preguntas
   puntuales y generacion de reportes.
-- `streamlit_app.py`: interfaz web local para demo en vivo.
+- `streamlit_app.py`: interfaz legacy en Streamlit.
+- `frontend/src/app`: rutas Next, layout y API routes proxy.
+- `frontend/src/features/agent`: estado y flujos del agente en React.
+- `frontend/src/components`: componentes reutilizables de UI, tabla, metricas y
+  reporte.
 
 ## Criterios de Insight
 

@@ -3,6 +3,7 @@ openpyxl==3.1.5
 plotly==6.7.0
 streamlit==1.56.0
 cryptography==46.0.7
+fastapi==0.124.4
 langchain==1.2.15
 langchain-anthropic==1.4.0
 langchain-google-genai==4.2.2
@@ -11,3 +12,4 @@ langchain-openai==1.1.14
 langgraph==1.1.6
 pytest==9.0.3
 ruff==0.15.11
+uvicorn==0.44.0

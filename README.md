@@ -17,13 +17,21 @@ de insights ejecutivos.
 - Sugerencias proactivas para guiar al usuario no tecnico.
 - Reporte automatico en Markdown y HTML con anomalias, tendencias,
   benchmarking, correlaciones y oportunidades.
-- Interfaz CLI y app Streamlit para demo local.
+- Interfaz web migrada a Next.js + React para preparar despliegue en Vercel.
+- API Python local con FastAPI para exponer agente, credenciales y reportes.
 
 ## Setup
 
 ```powershell
 .\env\Scripts\python.exe -m pip install -r requirements.txt
 $env:PYTHONPATH = "src"
+```
+
+Para la interfaz Next.js se necesita Node.js 20+:
+
+```powershell
+cd frontend
+npm install
 ```
 
 El proyecto detecta automaticamente el workbook `.xlsx` ubicado en la raiz. Si
@@ -80,7 +88,37 @@ $env:PYTHONPATH = "src"
 Los reportes se escriben en `reports/executive_report.md` y
 `reports/executive_report.html`.
 
-## Uso Streamlit
+## Uso Web Next.js
+
+Levantar backend Python:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\env\Scripts\uvicorn.exe rappi_intelligence.api:app --reload --port 8000
+```
+
+Levantar frontend Next:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Abrir:
+
+```text
+http://localhost:3000
+```
+
+La app Next usa `RAPPI_API_BASE_URL` para apuntar al backend. Por defecto:
+
+```text
+http://localhost:8000
+```
+
+## Uso Streamlit Legacy
+
+La app Streamlit queda como referencia legacy mientras se completa la migracion:
 
 ```powershell
 $env:PYTHONPATH = "src"
@@ -124,6 +162,20 @@ El flujo principal usa LangGraph:
 
 Los calculos numericos no los inventa el LLM. El modelo interpreta y redacta,
 pero las tablas y metricas salen de herramientas pandas auditables.
+
+## Arquitectura Frontend
+
+La app Next esta en `frontend/` y sigue una separacion por capas:
+
+- `src/app`: rutas Next, layout y API routes proxy.
+- `src/features/agent`: caso de uso principal del agente y cliente API.
+- `src/components`: componentes visuales reutilizables.
+- `src/lib`: configuracion, HTTP client y helpers de Ollama.
+- `src/types`: contratos TypeScript compartidos.
+
+Para Vercel, el frontend se puede desplegar como proyecto Next. El backend
+Python debe publicarse por separado o exponerse como servicio HTTP y configurar
+`RAPPI_API_BASE_URL` en las variables de entorno de Vercel.
 
 ## Costo estimado
 
