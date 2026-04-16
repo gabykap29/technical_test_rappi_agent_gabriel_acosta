@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "dev": "deno run -A npm:next@15.5.15 dev --hostname 127.0.0.1 --port 3000",
+    "build": "deno run -A npm:next@15.5.15 build",
+    "lint": "deno run -A npm:eslint@9.39.4 .",
+    "typecheck": "deno run -A npm:typescript@5.9.3/tsc --noEmit"
+  }
+}

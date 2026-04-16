@@ -104,6 +104,27 @@ cd frontend
 npm run dev
 ```
 
+Con Bun:
+
+```powershell
+cd frontend
+bun run dev
+```
+
+Con Deno, si Bun presenta problemas:
+
+```powershell
+cd frontend
+deno task dev
+```
+
+Build recomendado si Bun falla en Windows:
+
+```powershell
+cd frontend
+deno task build
+```
+
 Abrir:
 
 ```text
