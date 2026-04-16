@@ -67,7 +67,7 @@ def load_dataset(source: Path | str | None = None) -> AnalyticsDataset:
 
     metrics = normalize_metrics(metrics)
     orders = normalize_orders(orders, metrics)
-    wide = pd.concat([metrics, orders], ignore_index=True)
+    wide = _deduplicate_wide(pd.concat([metrics, orders], ignore_index=True))
     long = wide_to_long(wide)
     return AnalyticsDataset(wide=wide, long=long, metric_dictionary=dictionary)
 
@@ -156,6 +156,15 @@ def _coerce_week_values(df: pd.DataFrame) -> pd.DataFrame:
     for column in CANONICAL_WEEK_COLUMNS:
         df[column] = pd.to_numeric(df[column], errors="coerce")
     return df.dropna(subset=CANONICAL_WEEK_COLUMNS, how="all").reset_index(drop=True)
+
+
+def _deduplicate_wide(wide: pd.DataFrame) -> pd.DataFrame:
+    group_columns = IDENTIFIER_COLUMNS + SEGMENT_COLUMNS + ["METRIC"]
+    return (
+        wide.groupby(group_columns, dropna=False)[CANONICAL_WEEK_COLUMNS]
+        .mean()
+        .reset_index()
+    )
 
 
 def _ascii(value: str) -> str:
