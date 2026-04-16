@@ -92,7 +92,10 @@ def render_html_report(markdown_report: str) -> str:
 """
 
 
-def write_reports(dataset: AnalyticsDataset, output_dir: Path | None = None) -> tuple[Path, Path]:
+def write_reports(
+    dataset: AnalyticsDataset,
+    output_dir: Path | None = None,
+) -> tuple[Path, Path]:
     """Write Markdown and HTML reports to disk."""
 
     target = output_dir or REPORTS_DIR

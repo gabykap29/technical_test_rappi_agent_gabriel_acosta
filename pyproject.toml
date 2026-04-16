@@ -2,6 +2,7 @@
 line-length = 88
 target-version = "py312"
 src = ["src", "tests"]
+extend-exclude = [".tmp", "env"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -9,3 +10,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = "-p no:cacheprovider"

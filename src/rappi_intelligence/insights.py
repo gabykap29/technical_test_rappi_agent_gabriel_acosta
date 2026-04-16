@@ -8,7 +8,6 @@ from rappi_intelligence.config import (
     CANONICAL_WEEK_COLUMNS,
     IDENTIFIER_COLUMNS,
     NEGATIVE_METRICS,
-    POSITIVE_METRICS,
 )
 from rappi_intelligence.models import AnalyticsDataset, Insight
 
@@ -187,7 +186,11 @@ class InsightGenerator:
                             "no como causalidad. Validar con segmentacion por pais."
                         ),
                         severity="medium",
-                        evidence={"metric_a": metric_a, "metric_b": metric_b, "r": value},
+                        evidence={
+                            "metric_a": metric_a,
+                            "metric_b": metric_b,
+                            "r": value,
+                        },
                     )
                 )
         return sorted(
@@ -229,7 +232,10 @@ class InsightGenerator:
             insights.append(
                 Insight(
                     category="Oportunidades",
-                    title=f"{row['ZONE']} combina alto volumen con bajo Lead Penetration",
+                    title=(
+                        f"{row['ZONE']} combina alto volumen "
+                        "con bajo Lead Penetration"
+                    ),
                     detail=(
                         f"{row['COUNTRY']} / {row['CITY']} tiene "
                         f"{row['L0W_ORDERS']:.0f} ordenes actuales y "

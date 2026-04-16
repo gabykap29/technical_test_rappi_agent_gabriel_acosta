@@ -148,7 +148,10 @@ class QueryEngine:
         chart = px.line(long, x="WEEK", y="VALUE", color="ZONE", markers=True)
         target = f" en {zone}" if zone else ""
         return AgentResponse(
-            answer=f"Evolucion de {metric}{target} durante las ultimas {weeks} semanas.",
+            answer=(
+                f"Evolucion de {metric}{target} durante "
+                f"las ultimas {weeks} semanas."
+            ),
             table=table.reset_index(drop=True),
             chart=chart,
             suggestions=[
