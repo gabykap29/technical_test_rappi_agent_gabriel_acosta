@@ -37,13 +37,17 @@ Providers soportados:
 - `openai`: via `langchain-openai`.
 - `anthropic`: via `langchain-anthropic`.
 - `gemini`: via `langchain-google-genai`.
-- `ollama`: via `langchain-ollama`.
+- `ollama`: via `langchain-ollama`; soporta modo local
+  (`http://localhost:11434`) y modo cloud (`https://ollama.com`) con header
+  `Authorization: Bearer <token>`.
 
 ## Decisiones Tomadas
 
 - LangGraph como capa de agente: separa planificacion, ejecucion y redaccion.
 - LLM configurable: permite elegir provider/modelo segun costo, latencia o
   disponibilidad.
+- Ollama dual: puede correr contra una instancia local sin API key o contra
+  Ollama Cloud con token cifrado.
 - Pandas como fuente de verdad: el LLM no calcula metricas, solo interpreta y
   redacta a partir de evidencia.
 - SQLite cifrado: las API keys se guardan localmente cifradas con Fernet.
@@ -80,7 +84,7 @@ flowchart TD
 - `rappi_intelligence.credentials`: SQLite local con API keys cifradas mediante
   Fernet.
 - `rappi_intelligence.llm_providers`: factory de modelos LangChain para OpenAI,
-  Anthropic, Gemini y Ollama.
+  Anthropic, Gemini y Ollama local/cloud.
 - `rappi_intelligence.llm_agent`: workflow LangGraph con nodos `plan`,
   `execute` y `respond`.
 - `rappi_intelligence.models`: dataclasses de dominio (`AnalyticsDataset`,

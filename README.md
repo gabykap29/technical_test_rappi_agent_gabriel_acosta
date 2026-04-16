@@ -10,6 +10,8 @@ de insights ejecutivos.
   tendencias, agregaciones, analisis multivariable e inferencias sobre
   crecimiento.
 - Selector de provider LLM: OpenAI, Anthropic, Gemini u Ollama.
+- Ollama soporta dos modos: local (`http://localhost:11434`) y cloud
+  (`https://ollama.com` con token Bearer).
 - Guardado local de API keys en SQLite cifrado con `cryptography` y Fernet.
 - Memoria conversacional simple para reutilizar metrica, pais o zona reciente.
 - Sugerencias proactivas para guiar al usuario no tecnico.
@@ -44,7 +46,14 @@ Configurar Ollama local:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --model llama3.1
+.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --ollama-mode local --model llama3.1
+```
+
+Configurar Ollama Cloud:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --ollama-mode cloud --model llama3.1 --api-key "TU_OLLAMA_TOKEN"
 ```
 
 Pregunta unica:
@@ -81,10 +90,12 @@ $env:PYTHONPATH = "src"
 En la sidebar:
 
 1. Elegir provider: `openai`, `anthropic`, `gemini` u `ollama`.
-2. Confirmar o cambiar el modelo.
-3. Pegar API key si el provider no es Ollama.
-4. Click en `Save encrypted provider config`.
-5. Mantener activo `Use LangGraph LLM agent`.
+2. Si el provider es `ollama`, elegir `Localhost` u `Ollama Cloud`.
+3. Confirmar o cambiar el modelo.
+4. Pegar API key si el provider la requiere. Ollama local no requiere key;
+   Ollama Cloud si requiere token.
+5. Click en `Save encrypted provider config`.
+6. Mantener activo `Use LangGraph LLM agent`.
 
 ## Preguntas de demo
 

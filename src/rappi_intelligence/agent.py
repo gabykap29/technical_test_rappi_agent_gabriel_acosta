@@ -19,13 +19,15 @@ class RappiOperationsAgent:
         data_source: str | None = None,
         provider: str | None = None,
         model: str | None = None,
+        base_url: str | None = None,
         require_llm: bool = False,
     ) -> None:
         self.dataset = load_dataset(data_source)
         self.provider = provider
         self.model = model
+        self.base_url = base_url
         self.require_llm = require_llm
-        self.engine = self._build_engine(provider, model, require_llm)
+        self.engine = self._build_engine(provider, model, base_url, require_llm)
 
     def ask(self, question: str) -> AgentResponse:
         """Answer a business question and keep conversational context."""
@@ -48,12 +50,13 @@ class RappiOperationsAgent:
         self,
         provider: str | None,
         model: str | None,
+        base_url: str | None,
         require_llm: bool,
     ):
         if not provider:
             return QueryEngine(self.dataset)
         try:
-            config = load_llm_config(provider, model)
+            config = load_llm_config(provider, model, base_url=base_url)
             llm = build_chat_model(config)
             return LangGraphOperationsAgent(
                 dataset=self.dataset,

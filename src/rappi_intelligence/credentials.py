@@ -18,6 +18,7 @@ class ProviderCredential:
     provider: str
     model: str
     has_api_key: bool
+    base_url: str | None = None
 
 
 class CredentialStore:
@@ -38,25 +39,36 @@ class CredentialStore:
         provider: str,
         model: str,
         api_key: str | None = None,
+        base_url: str | None = None,
+        preserve_existing_key: bool = True,
     ) -> None:
         """Create or update provider settings."""
 
         provider = provider.lower().strip()
-        encrypted_key = self._encrypt(api_key) if api_key else self.get_encrypted_key(
-            provider
-        )
+        if api_key:
+            encrypted_key = self._encrypt(api_key)
+        elif preserve_existing_key:
+            encrypted_key = self.get_encrypted_key(provider)
+        else:
+            encrypted_key = None
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO provider_credentials(provider, model, encrypted_api_key)
-                VALUES (?, ?, ?)
+                INSERT INTO provider_credentials(
+                    provider,
+                    model,
+                    encrypted_api_key,
+                    base_url
+                )
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(provider)
                 DO UPDATE SET
                     model = excluded.model,
                     encrypted_api_key = excluded.encrypted_api_key,
+                    base_url = excluded.base_url,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (provider, model, encrypted_key),
+                (provider, model, encrypted_key, base_url),
             )
 
     def get_api_key(self, provider: str) -> str | None:
@@ -77,13 +89,23 @@ class CredentialStore:
             ).fetchone()
         return str(row["model"]) if row else None
 
+    def get_base_url(self, provider: str) -> str | None:
+        """Return configured base URL for the provider."""
+
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT base_url FROM provider_credentials WHERE provider = ?",
+                (provider.lower().strip(),),
+            ).fetchone()
+        return str(row["base_url"]) if row and row["base_url"] else None
+
     def list_providers(self) -> list[ProviderCredential]:
         """List saved provider configurations without exposing secrets."""
 
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT provider, model, encrypted_api_key
+                SELECT provider, model, encrypted_api_key, base_url
                 FROM provider_credentials
                 ORDER BY provider
                 """
@@ -93,6 +115,7 @@ class CredentialStore:
                 provider=str(row["provider"]),
                 model=str(row["model"]),
                 has_api_key=bool(row["encrypted_api_key"]),
+                base_url=str(row["base_url"]) if row["base_url"] else None,
             )
             for row in rows
         ]
@@ -122,11 +145,22 @@ class CredentialStore:
                     provider TEXT PRIMARY KEY,
                     model TEXT NOT NULL,
                     encrypted_api_key BLOB,
+                    base_url TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(provider_credentials)"
+                ).fetchall()
+            }
+            if "base_url" not in columns:
+                connection.execute(
+                    "ALTER TABLE provider_credentials ADD COLUMN base_url TEXT"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)

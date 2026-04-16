@@ -19,11 +19,13 @@ from rappi_intelligence.reporting import render_markdown_report
 def _agent(
     provider: str | None,
     model: str | None,
+    base_url: str | None,
     require_llm: bool,
 ) -> RappiOperationsAgent:
     return RappiOperationsAgent(
         provider=provider,
         model=model,
+        base_url=base_url,
         require_llm=require_llm,
     )
 
@@ -58,10 +60,10 @@ def main() -> None:
     _inject_styles()
 
     _init_state()
-    provider, model, require_llm = _render_provider_setup()
+    provider, model, base_url, require_llm = _render_provider_setup()
 
     try:
-        agent = _agent(provider, model, require_llm)
+        agent = _agent(provider, model, base_url, require_llm)
     except LLMConfigurationError as exc:
         st.error(str(exc))
         st.stop()
@@ -118,7 +120,7 @@ def _render_header() -> None:
     )
 
 
-def _render_provider_setup() -> tuple[str | None, str | None, bool]:
+def _render_provider_setup() -> tuple[str | None, str | None, str | None, bool]:
     with st.sidebar:
         st.markdown("## LLM provider")
         provider = st.selectbox(
@@ -126,6 +128,22 @@ def _render_provider_setup() -> tuple[str | None, str | None, bool]:
             options=list(SUPPORTED_PROVIDERS),
             index=0,
         )
+        ollama_mode = "local"
+        base_url = None
+        if provider == "ollama":
+            ollama_mode = st.radio(
+                "Ollama mode",
+                options=["local", "cloud"],
+                format_func=_format_ollama_mode,
+                horizontal=True,
+            )
+            base_url = (
+                "https://ollama.com"
+                if ollama_mode == "cloud"
+                else "http://localhost:11434"
+            )
+            st.text_input("Base URL", value=base_url, disabled=True)
+
         default_model = DEFAULT_PROVIDER_MODELS[provider]
         model = st.text_input("Model", value=default_model)
         require_llm = st.toggle(
@@ -139,8 +157,10 @@ def _render_provider_setup() -> tuple[str | None, str | None, bool]:
 
         stored = CredentialStore().list_providers()
         stored_map = {item.provider: item for item in stored}
-        if provider == "ollama":
-            st.caption("Ollama uses a local model and does not need an API key.")
+        if provider == "ollama" and ollama_mode == "local":
+            st.caption("Local Ollama does not need an API key.")
+        elif provider == "ollama":
+            st.caption("Ollama Cloud uses https://ollama.com and requires a token.")
         elif stored_map.get(provider, None) and stored_map[provider].has_api_key:
             st.success("Encrypted API key is configured.")
         else:
@@ -150,14 +170,26 @@ def _render_provider_setup() -> tuple[str | None, str | None, bool]:
             "API key",
             type="password",
             placeholder="Paste key and click Save",
-            disabled=provider == "ollama",
+            disabled=provider == "ollama" and ollama_mode == "local",
         )
         if st.button("Save encrypted provider config", use_container_width=True):
-            key_to_save = None if provider == "ollama" else api_key
+            key_to_save = (
+                None if provider == "ollama" and ollama_mode == "local" else api_key
+            )
             if provider != "ollama" and not key_to_save:
                 st.error("Paste an API key before saving.")
+            elif provider == "ollama" and ollama_mode == "cloud" and not key_to_save:
+                st.error("Paste an API key before saving.")
             else:
-                CredentialStore().save_provider(provider, model, key_to_save)
+                CredentialStore().save_provider(
+                    provider,
+                    model,
+                    key_to_save,
+                    base_url=base_url,
+                    preserve_existing_key=not (
+                        provider == "ollama" and ollama_mode == "local"
+                    ),
+                )
                 _agent.clear()
                 st.success("Provider config saved in encrypted SQLite storage.")
 
@@ -165,8 +197,8 @@ def _render_provider_setup() -> tuple[str | None, str | None, bool]:
         st.divider()
 
     if not require_llm:
-        return None, None, False
-    return provider, model, True
+        return None, None, None, False
+    return provider, model, base_url, True
 
 
 def _render_sidebar(agent: RappiOperationsAgent, provider: str | None) -> None:
@@ -191,6 +223,10 @@ def _render_sidebar(agent: RappiOperationsAgent, provider: str | None) -> None:
             f"Active mode: {provider or 'deterministic fallback'}. "
             "Follow-up questions reuse the latest metric, country and zone."
         )
+
+
+def _format_ollama_mode(value: str) -> str:
+    return "Localhost" if value == "local" else "Ollama Cloud"
 
 
 def _render_dataset_overview(agent: RappiOperationsAgent) -> None:
