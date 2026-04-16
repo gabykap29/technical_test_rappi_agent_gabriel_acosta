@@ -5,13 +5,27 @@ from __future__ import annotations
 import streamlit as st
 
 from rappi_intelligence.agent import RappiOperationsAgent
+from rappi_intelligence.config import DEFAULT_PROVIDER_MODELS
+from rappi_intelligence.credentials import CredentialStore
+from rappi_intelligence.llm_providers import (
+    SUPPORTED_PROVIDERS,
+    LLMConfigurationError,
+)
 from rappi_intelligence.models import AgentResponse
 from rappi_intelligence.reporting import render_markdown_report
 
 
 @st.cache_resource
-def _agent() -> RappiOperationsAgent:
-    return RappiOperationsAgent()
+def _agent(
+    provider: str | None,
+    model: str | None,
+    require_llm: bool,
+) -> RappiOperationsAgent:
+    return RappiOperationsAgent(
+        provider=provider,
+        model=model,
+        require_llm=require_llm,
+    )
 
 
 def _quick_questions() -> dict[str, list[str]]:
@@ -43,10 +57,16 @@ def main() -> None:
     )
     _inject_styles()
 
-    agent = _agent()
     _init_state()
+    provider, model, require_llm = _render_provider_setup()
 
-    _render_sidebar(agent)
+    try:
+        agent = _agent(provider, model, require_llm)
+    except LLMConfigurationError as exc:
+        st.error(str(exc))
+        st.stop()
+
+    _render_sidebar(agent, provider)
     _render_header()
     _render_dataset_overview(agent)
 
@@ -87,8 +107,9 @@ def _render_header() -> None:
                 <p class="eyebrow">Operations analytics agent</p>
                 <h1>Rappi Operations Intelligence</h1>
                 <p class="header-copy">
-                    Ask business questions, inspect the evidence and generate an
-                    executive readout from the same operational dataset.
+                    Choose an LLM provider, ask business questions, inspect the
+                    evidence and generate an executive readout from the same
+                    operational dataset.
                 </p>
             </div>
         </section>
@@ -97,7 +118,58 @@ def _render_header() -> None:
     )
 
 
-def _render_sidebar(agent: RappiOperationsAgent) -> None:
+def _render_provider_setup() -> tuple[str | None, str | None, bool]:
+    with st.sidebar:
+        st.markdown("## LLM provider")
+        provider = st.selectbox(
+            "Provider",
+            options=list(SUPPORTED_PROVIDERS),
+            index=0,
+        )
+        default_model = DEFAULT_PROVIDER_MODELS[provider]
+        model = st.text_input("Model", value=default_model)
+        require_llm = st.toggle(
+            "Use LangGraph LLM agent",
+            value=True,
+            help=(
+                "If enabled, questions are planned and written through "
+                "the selected LLM."
+            ),
+        )
+
+        stored = CredentialStore().list_providers()
+        stored_map = {item.provider: item for item in stored}
+        if provider == "ollama":
+            st.caption("Ollama uses a local model and does not need an API key.")
+        elif stored_map.get(provider, None) and stored_map[provider].has_api_key:
+            st.success("Encrypted API key is configured.")
+        else:
+            st.warning("No encrypted API key configured yet.")
+
+        api_key = st.text_input(
+            "API key",
+            type="password",
+            placeholder="Paste key and click Save",
+            disabled=provider == "ollama",
+        )
+        if st.button("Save encrypted provider config", use_container_width=True):
+            key_to_save = None if provider == "ollama" else api_key
+            if provider != "ollama" and not key_to_save:
+                st.error("Paste an API key before saving.")
+            else:
+                CredentialStore().save_provider(provider, model, key_to_save)
+                _agent.clear()
+                st.success("Provider config saved in encrypted SQLite storage.")
+
+        st.caption("Keys are encrypted with Fernet before being written to SQLite.")
+        st.divider()
+
+    if not require_llm:
+        return None, None, False
+    return provider, model, True
+
+
+def _render_sidebar(agent: RappiOperationsAgent, provider: str | None) -> None:
     with st.sidebar:
         st.markdown("## Quick actions")
         if st.button("Clear conversation", use_container_width=True):
@@ -116,8 +188,8 @@ def _render_sidebar(agent: RappiOperationsAgent) -> None:
 
         st.divider()
         st.caption(
-            "Tip: use follow-up questions after selecting a metric. The agent keeps "
-            "the latest metric, country and zone in memory."
+            f"Active mode: {provider or 'deterministic fallback'}. "
+            "Follow-up questions reuse the latest metric, country and zone."
         )
 
 
@@ -221,8 +293,9 @@ def _render_demo_guide() -> None:
 
     st.markdown("### Positioning")
     st.write(
-        "The system is deterministic: it avoids hallucinations, keeps cost at zero "
-        "and makes every answer auditable through tables and charts."
+        "The system uses LangGraph with a selectable LLM provider for planning "
+        "and response writing. Numeric work stays in pandas tools so every "
+        "answer remains auditable through tables and charts."
     )
 
 

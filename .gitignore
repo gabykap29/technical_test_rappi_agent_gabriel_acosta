@@ -9,3 +9,7 @@ pytest-cache-files-*/
 reports/
 exports/
 .streamlit/
+.secrets/
+.test_artifacts/
+*.sqlite
+*.sqlite3

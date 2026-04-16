@@ -23,6 +23,7 @@ class AgentResponse:
     table: pd.DataFrame | None = None
     chart: Any | None = None
     suggestions: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

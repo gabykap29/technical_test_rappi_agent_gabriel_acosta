@@ -1,6 +1,12 @@
 """High-level conversational agent facade."""
 
 from rappi_intelligence.data_loader import load_dataset
+from rappi_intelligence.llm_agent import LangGraphOperationsAgent
+from rappi_intelligence.llm_providers import (
+    LLMConfigurationError,
+    build_chat_model,
+    load_llm_config,
+)
 from rappi_intelligence.models import AgentResponse
 from rappi_intelligence.query_engine import QueryEngine
 
@@ -8,9 +14,18 @@ from rappi_intelligence.query_engine import QueryEngine
 class RappiOperationsAgent:
     """Stateful agent for operational analytics questions."""
 
-    def __init__(self, data_source: str | None = None) -> None:
+    def __init__(
+        self,
+        data_source: str | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+        require_llm: bool = False,
+    ) -> None:
         self.dataset = load_dataset(data_source)
-        self.engine = QueryEngine(self.dataset)
+        self.provider = provider
+        self.model = model
+        self.require_llm = require_llm
+        self.engine = self._build_engine(provider, model, require_llm)
 
     def ask(self, question: str) -> AgentResponse:
         """Answer a business question and keep conversational context."""
@@ -28,3 +43,25 @@ class RappiOperationsAgent:
             "Que zonas tienen alto Lead Penetration pero bajo Perfect Order?",
             "Cuales zonas crecen mas en ordenes en las ultimas 5 semanas?",
         ]
+
+    def _build_engine(
+        self,
+        provider: str | None,
+        model: str | None,
+        require_llm: bool,
+    ):
+        if not provider:
+            return QueryEngine(self.dataset)
+        try:
+            config = load_llm_config(provider, model)
+            llm = build_chat_model(config)
+            return LangGraphOperationsAgent(
+                dataset=self.dataset,
+                llm=llm,
+                provider=config.provider,
+                model=config.model,
+            )
+        except LLMConfigurationError:
+            if require_llm:
+                raise
+            return QueryEngine(self.dataset)

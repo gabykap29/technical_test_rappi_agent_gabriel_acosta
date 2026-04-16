@@ -5,6 +5,9 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "data"
 REPORTS_DIR = ROOT_DIR / "reports"
+SECRETS_DIR = ROOT_DIR / ".secrets"
+FERNET_KEY_PATH = SECRETS_DIR / "fernet.key"
+SECRETS_DB_PATH = SECRETS_DIR / "credentials.sqlite"
 
 DEFAULT_EXCEL_PATTERN = (
     "Sistema de Analisis Inteligente para Operaciones Rappi - Dummy Data*.xlsx"
@@ -60,4 +63,11 @@ METRIC_ALIASES = {
     "turbo": "Turbo Adoption",
     "markdowns": "Restaurants Markdowns / GMV",
     "conversion": "Non-Pro PTC > OP",
+}
+
+DEFAULT_PROVIDER_MODELS = {
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-5-haiku-latest",
+    "gemini": "gemini-1.5-flash",
+    "ollama": "llama3.1",
 }

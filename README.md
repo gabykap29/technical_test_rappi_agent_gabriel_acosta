@@ -1,12 +1,16 @@
 # Rappi Operations Intelligence
 
 Sistema local para explorar metricas operacionales de Rappi con un agente
-conversacional y un generador de insights ejecutivos.
+conversacional basado en LangGraph, providers LLM configurables y un generador
+de insights ejecutivos.
 
 ## Alcance
 
-- Bot conversacional para preguntas de filtrado, comparacion, tendencias,
-  agregaciones, analisis multivariable e inferencias sobre crecimiento.
+- Bot conversacional con LangGraph para preguntas de filtrado, comparacion,
+  tendencias, agregaciones, analisis multivariable e inferencias sobre
+  crecimiento.
+- Selector de provider LLM: OpenAI, Anthropic, Gemini u Ollama.
+- Guardado local de API keys en SQLite cifrado con `cryptography` y Fernet.
 - Memoria conversacional simple para reutilizar metrica, pais o zona reciente.
 - Sugerencias proactivas para guiar al usuario no tecnico.
 - Reporte automatico en Markdown y HTML con anomalias, tendencias,
@@ -29,11 +33,25 @@ se prefiere usar CSV, crear una carpeta `data/` con:
 
 ## Uso CLI
 
+Guardar una API key cifrada:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider openai --model gpt-4o-mini --api-key "TU_API_KEY"
+```
+
+Configurar Ollama local:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --model llama3.1
+```
+
 Pregunta unica:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --ask "Cuales son las 5 zonas con mayor Lead Penetration esta semana?"
+.\env\Scripts\python.exe -m rappi_intelligence.cli --provider openai --ask "Cuales son las 5 zonas con mayor Lead Penetration esta semana?"
 ```
 
 Modo interactivo:
@@ -60,6 +78,14 @@ $env:PYTHONPATH = "src"
 .\env\Scripts\streamlit.exe run streamlit_app.py
 ```
 
+En la sidebar:
+
+1. Elegir provider: `openai`, `anthropic`, `gemini` u `ollama`.
+2. Confirmar o cambiar el modelo.
+3. Pegar API key si el provider no es Ollama.
+4. Click en `Save encrypted provider config`.
+5. Mantener activo `Use LangGraph LLM agent`.
+
 ## Preguntas de demo
 
 - Cuales son las 5 zonas con mayor Lead Penetration esta semana?
@@ -77,7 +103,20 @@ $env:PYTHONPATH = "src"
 .\env\Scripts\ruff.exe check .
 ```
 
+## Arquitectura LLM
+
+El flujo principal usa LangGraph:
+
+1. Nodo `plan`: el LLM interpreta la pregunta y genera un plan JSON.
+2. Nodo `execute`: pandas ejecuta el analisis sobre el dataset.
+3. Nodo `respond`: el LLM redacta la respuesta final usando solo la evidencia.
+
+Los calculos numericos no los inventa el LLM. El modelo interpreta y redacta,
+pero las tablas y metricas salen de herramientas pandas auditables.
+
 ## Costo estimado
 
-La solucion actual no usa APIs pagas ni LLM externo. El costo por sesion local
-es `0 USD`, fuera del costo de infraestructura de la maquina donde se ejecuta.
+Depende del provider y modelo elegido. Ollama local no consume API paga. OpenAI,
+Anthropic y Gemini consumen segun tokens de entrada/salida. Para una demo corta
+con 5 a 10 preguntas y modelos livianos, el costo esperado suele ser bajo, pero
+debe validarse contra el pricing vigente del provider elegido.
