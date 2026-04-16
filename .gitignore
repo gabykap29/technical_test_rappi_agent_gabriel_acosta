@@ -3,9 +3,9 @@ env/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+pytest-cache-files-*/
 .ruff_cache/
 .tmp/
-reports/*.html
-reports/*.md
+reports/
 exports/
 .streamlit/
