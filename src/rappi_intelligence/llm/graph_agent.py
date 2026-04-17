@@ -20,6 +20,7 @@ class AgentState(TypedDict, total=False):
     plan: dict[str, Any]
     tool_response: AgentResponse
     final_answer: str
+    executive_report: str
 
 
 class LangGraphOperationsAgent:
@@ -41,6 +42,29 @@ class LangGraphOperationsAgent:
 
     def ask(self, question: str) -> AgentResponse:
         """Answer a question through the LangGraph workflow."""
+
+        normalized = question.lower()
+        is_report_request = any(
+            keyword in normalized
+            for keyword in [
+                "reporte",
+                "reporte ejecutivo",
+                "executive report",
+                "informe",
+                "reporte de operaciones",
+            ]
+        )
+
+        if is_report_request:
+            report = self.generate_executive_report()
+            return AgentResponse(
+                answer=report,
+                metadata={
+                    "provider": self.provider,
+                    "model": self.model,
+                    "type": "executive_report",
+                },
+            )
 
         state = self.graph.invoke({"question": question})
         response = state["tool_response"]
@@ -124,11 +148,55 @@ class LangGraphOperationsAgent:
         graph.add_node("plan", self._plan)
         graph.add_node("execute", self._execute)
         graph.add_node("respond", self._respond)
+        graph.add_node("report", self._generate_report)
         graph.set_entry_point("plan")
         graph.add_edge("plan", "execute")
         graph.add_edge("execute", "respond")
         graph.add_edge("respond", END)
         return graph.compile()
+
+    def generate_executive_report(self) -> str:
+        """Generate an executive report using the LLM to enhance insights."""
+        from rappi_intelligence.analytics.insights import InsightGenerator
+
+        generator = InsightGenerator(self.dataset)
+        insights = generator.generate()
+
+        report_prompt = [
+            SystemMessage(
+                content=(
+                    "Eres un asistente de análisis ejecutivo senior. "
+                    "Genera un reporte ejecutivo en formato Markdown en español. "
+                    "Usa los insights proporcionados y agrega contexto de negocio."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"Insights generados:\n{self._format_insights(insights)}\n"
+                    "Genera el reporte ejecutivo con:\n"
+                    "## Executive Summary (top 5 insights más importantes)\n"
+                    "## Análisis por categoría\n"
+                    "## Metodología"
+                )
+            ),
+        ]
+
+        message = self.llm.invoke(report_prompt)
+        return str(message.content)
+
+    def _generate_report(self, state: AgentState) -> AgentState:
+        return {"executive_report": self.generate_executive_report()}
+
+    def _format_insights(self, insights: list) -> str:
+        from rappi_intelligence.shared.models import Insight
+
+        lines = []
+        for insight in insights[:15]:
+            if isinstance(insight, Insight):
+                lines.append(
+                    f"- [{insight.severity}] {insight.title}: {insight.detail}"
+                )
+        return "\n".join(lines)
 
     def _plan(self, state: AgentState) -> AgentState:
         question = state["question"]
