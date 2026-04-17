@@ -38,6 +38,24 @@ class QueryEngine:
         self.metrics = sorted(dataset.wide["METRIC"].dropna().unique())
         self.countries = sorted(dataset.wide["COUNTRY"].dropna().unique())
         self.zones = sorted(dataset.wide["ZONE"].dropna().unique())
+        self._last_query = ""
+
+    @property
+    def last_query(self) -> str:
+        """Return the pandas query used in the last ask() call."""
+        return self._last_query
+
+    def _build_query(
+        self, metric: str | None, country: str | None, zone: str | None = None
+    ) -> str:
+        """Build a pandas query string for transparency."""
+        parts = []
+        parts.append(f"df[df['METRIC'] == '{metric}']")
+        if country:
+            parts.append(f"df['COUNTRY'] == '{country}'")
+        if zone:
+            parts.append(f"df['ZONE'] == '{zone}'")
+        return ".".join(parts)
 
     def ask(self, question: str) -> AgentResponse:
         """Answer a natural-language question using the available dataset."""
@@ -80,6 +98,8 @@ class QueryEngine:
         metric = metric or self.memory.last_metric or "Lead Penetration"
         ascending = _contains_any(normalized, ["menor", "peor", "bajo"])
         rows = self._metric_rows(metric, country)
+        query = self._build_query(metric, country, None)
+        self._last_query = query
         table = (
             rows[IDENTIFIER_COLUMNS + ["ZONE_TYPE", "METRIC", "L0W"]]
             .sort_values("L0W", ascending=ascending)
@@ -96,6 +116,7 @@ class QueryEngine:
                 f"Compara {metric} entre Wealthy y Non Wealthy",
                 f"Muestra la evolucion de {metric} para la primera zona",
             ],
+            query=query,
         )
 
     def _comparison(
@@ -105,6 +126,8 @@ class QueryEngine:
     ) -> AgentResponse:
         metric = metric or self.memory.last_metric or "Perfect Orders"
         rows = self._metric_rows(metric, country)
+        query = self._build_query(metric, country, None)
+        self._last_query = query
         table = (
             rows.groupby(["COUNTRY", "ZONE_TYPE"], dropna=False)["L0W"]
             .mean()
@@ -123,6 +146,7 @@ class QueryEngine:
                 f"Que zonas explican la brecha de {metric}?",
                 "Muestra zonas problematicas por pais",
             ],
+            query=query,
         )
 
     def _trend(
@@ -136,6 +160,8 @@ class QueryEngine:
         zone = zone or self.memory.last_zone
         weeks = min(_extract_limit(normalized, default=8), 9)
         rows = self._metric_rows(metric, country)
+        query = self._build_query(metric, country, zone)
+        self._last_query = query
         if zone:
             rows = rows[rows["ZONE"].map(_normalize) == _normalize(zone)]
         if rows.empty:
@@ -149,8 +175,7 @@ class QueryEngine:
         target = f" en {zone}" if zone else ""
         return AgentResponse(
             answer=(
-                f"Evolucion de {metric}{target} durante "
-                f"las ultimas {weeks} semanas."
+                f"Evolucion de {metric}{target} durante las ultimas {weeks} semanas."
             ),
             table=table.reset_index(drop=True),
             chart=chart,
@@ -158,11 +183,14 @@ class QueryEngine:
                 f"Compara {metric} por pais",
                 "Que cambio semana a semana fue mas fuerte?",
             ],
+            query=query,
         )
 
     def _average(self, metric: str | None, normalized: str) -> AgentResponse:
         metric = metric or self.memory.last_metric or "Lead Penetration"
         rows = self._metric_rows(metric)
+        query = self._build_query(metric, None, None)
+        self._last_query = query
         group_columns = ["COUNTRY"] if "pais" in normalized else ["COUNTRY", "CITY"]
         table = (
             rows.groupby(group_columns)["L0W"]
@@ -179,11 +207,14 @@ class QueryEngine:
                 f"Top 5 zonas con mayor {metric}",
                 f"Zonas con deterioro de {metric}",
             ],
+            query=query,
         )
 
     def _high_low_analysis(self, country: str | None) -> AgentResponse:
         lead = self._metric_rows("Lead Penetration", country)
         perfect = self._metric_rows("Perfect Orders", country)
+        query = f"df[df['METRIC'] == 'Lead Penetration'].merge(df[df['METRIC'] == 'Perfect Orders'])"
+        self._last_query = query
         table = lead[IDENTIFIER_COLUMNS + ["L0W"]].merge(
             perfect[IDENTIFIER_COLUMNS + ["L0W"]],
             on=IDENTIFIER_COLUMNS,
@@ -213,10 +244,13 @@ class QueryEngine:
                 "Genera recomendaciones para estas zonas",
                 "Compara estas zonas contra benchmarks del mismo pais",
             ],
+            query=query,
         )
 
     def _orders_growth(self, country: str | None) -> AgentResponse:
         rows = self._metric_rows("Orders", country)
+        query = self._build_query("Orders", country, None)
+        self._last_query = query
         table = rows[IDENTIFIER_COLUMNS + ["L5W", "L0W"]].copy()
         table["ABS_GROWTH"] = table["L0W"] - table["L5W"]
         table["PCT_GROWTH"] = _safe_divide(table["ABS_GROWTH"], table["L5W"])
@@ -225,7 +259,7 @@ class QueryEngine:
         chart = px.bar(table, x="ZONE", y="PCT_GROWTH", color="COUNTRY")
         return AgentResponse(
             answer=(
-                "Estas zonas tuvieron mayor crecimiento de ordenes en las ultimas "
+                "Estas zonas tiveram mayor crecimiento de ordenes en las ultimas "
                 f"5 semanas. Posibles drivers: {explanation}"
             ),
             table=table.reset_index(drop=True),
@@ -234,12 +268,15 @@ class QueryEngine:
                 "Muestra Gross Profit UE para estas zonas",
                 "Busca deterioros de Perfect Orders en las zonas que crecieron",
             ],
+            query=query,
         )
 
     def _problematic_zones(self, country: str | None) -> AgentResponse:
         current = self.dataset.wide.copy()
         if country:
             current = current[current["COUNTRY"] == country]
+        query = "df with calculated PCT_DELTA > 10% weekly change"
+        self._last_query = query
         current["DELTA"] = current["L0W"] - current["L1W"]
         current["PCT_DELTA"] = _safe_divide(current["DELTA"], current["L1W"])
         current["IS_NEGATIVE_METRIC"] = current["METRIC"].isin(NEGATIVE_METRICS)
@@ -258,6 +295,7 @@ class QueryEngine:
                 "Genera el reporte ejecutivo",
                 "Compara estas zonas con zonas similares",
             ],
+            query=query,
         )
 
     def _fallback(
@@ -268,6 +306,8 @@ class QueryEngine:
     ) -> AgentResponse:
         metric = metric or self.memory.last_metric or "Lead Penetration"
         rows = self._metric_rows(metric, country)
+        query = self._build_query(metric, country, zone)
+        self._last_query = query
         if zone:
             rows = rows[rows["ZONE"].map(_normalize) == _normalize(zone)]
         table = rows[IDENTIFIER_COLUMNS + ["ZONE_TYPE", "METRIC", "L0W"]].head(10)
@@ -282,6 +322,7 @@ class QueryEngine:
                 f"Promedio de {metric} por pais",
                 "Que zonas tienen alto Lead Penetration pero bajo Perfect Order?",
             ],
+            query=query,
         )
 
     def _metric_rows(self, metric: str, country: str | None = None) -> pd.DataFrame:

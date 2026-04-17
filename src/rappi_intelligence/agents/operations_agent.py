@@ -36,6 +36,11 @@ class RappiOperationsAgent:
 
         return self.engine.ask(question)
 
+    @property
+    def last_query(self) -> str:
+        """Return the pandas query used in the last ask() call."""
+        return getattr(self.engine, "last_query", "")
+
     async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
         """Stream answer chunks when the selected engine supports it."""
 

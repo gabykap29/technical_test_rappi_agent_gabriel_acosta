@@ -149,6 +149,7 @@ export function OperationsDashboard() {
         columns: [],
         suggestions: [],
         metadata: {},
+        query: "",
       };
       
       setMessages((current) => [
@@ -557,6 +558,7 @@ function ChatPanel({
               <EvidenceTable
                 columns={message.response.columns}
                 rows={message.response.table}
+                query={message.response.query}
               />
               <MiniBarChart
                 columns={message.response.columns}

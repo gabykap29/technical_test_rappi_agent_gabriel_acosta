@@ -44,6 +44,7 @@ export type ChatResponse = {
   columns: string[];
   suggestions: string[];
   metadata: Record<string, unknown>;
+  query: string;
 };
 
 export type ReportResponse = {

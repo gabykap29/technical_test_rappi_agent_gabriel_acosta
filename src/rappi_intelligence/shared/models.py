@@ -24,6 +24,7 @@ class AgentResponse:
     chart: Any | None = None
     suggestions: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    query: str = ""
 
 
 @dataclass

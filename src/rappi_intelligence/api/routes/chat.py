@@ -34,6 +34,7 @@ def chat(payload: ChatRequest) -> dict[str, Any]:
         "columns": [] if response.table is None else list(response.table.columns),
         "suggestions": response.suggestions,
         "metadata": response.metadata,
+        "query": response.query,
     }
 
 
@@ -62,6 +63,7 @@ async def chat_stream(payload: ChatRequest):
                     else []
                 ),
                 "suggestions": tool_response.suggestions,
+                "query": tool_response.query,
             }
             yield f"data: {json.dumps(table_data, default=str)}\n\n"
 
