@@ -57,13 +57,6 @@ export function OperationsDashboard() {
     void loadInitialData();
   }, []);
 
-  useEffect(() => {
-    const defaultModel = providers?.defaultModels[provider];
-    if (defaultModel) {
-      setModel(defaultModel);
-    }
-  }, [provider, providers]);
-
   async function loadInitialData() {
     try {
       const [overviewData, providerData] = await Promise.all([
@@ -72,7 +65,7 @@ export function OperationsDashboard() {
       ]);
       setOverview(overviewData);
       setProviders(providerData);
-      setModel(providerData.defaultModels.openai);
+      setModel(resolveModelForProvider(providerData, "openai"));
     } catch (requestError) {
       setError(formatError(requestError));
     }
@@ -94,10 +87,12 @@ export function OperationsDashboard() {
         base_url: baseUrl ?? undefined,
         preserve_existing_key: !(provider === "ollama" && ollamaMode === "local"),
       });
+      const savedModel = model;
       setApiKey("");
       setStatus("Provider configuration saved encrypted in SQLite.");
       const providerData = await getProviders();
       setProviders(providerData);
+      setModel(savedModel);
     } catch (requestError) {
       setError(formatError(requestError));
     }
@@ -166,7 +161,13 @@ export function OperationsDashboard() {
               <Field label="Provider">
                 <SelectInput
                   value={provider}
-                  onChange={(event) => setProvider(event.target.value as ProviderName)}
+                  onChange={(event) => {
+                    const nextProvider = event.target.value as ProviderName;
+                    setProvider(nextProvider);
+                    if (providers) {
+                      setModel(resolveModelForProvider(providers, nextProvider));
+                    }
+                  }}
                 >
                   {PROVIDERS.map((item) => (
                     <option key={item} value={item}>
@@ -383,6 +384,7 @@ function ChatPanel({
             <p className="mb-4 text-sm leading-6 text-[#29342f]">
               {message.response.answer}
             </p>
+            <ResponseMetadata metadata={message.response.metadata} />
             <div className="grid gap-4 xl:grid-cols-2">
               <EvidenceTable
                 columns={message.response.columns}
@@ -435,6 +437,24 @@ function DemoGuide() {
   );
 }
 
+function ResponseMetadata({
+  metadata,
+}: {
+  metadata: Record<string, unknown>;
+}) {
+  const provider = typeof metadata.provider === "string" ? metadata.provider : null;
+  const model = typeof metadata.model === "string" ? metadata.model : null;
+  if (!provider && !model) {
+    return null;
+  }
+
+  return (
+    <p className="mb-4 rounded-lg bg-[#f1f6f3] px-3 py-2 text-xs font-semibold text-[#315246]">
+      Running with {provider ?? "unknown provider"} / {model ?? "unknown model"}
+    </p>
+  );
+}
+
 function TabButton({
   active,
   children,
@@ -474,4 +494,12 @@ function StatusMessage({
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
+}
+
+function resolveModelForProvider(
+  providers: ProvidersResponse,
+  provider: ProviderName,
+): string {
+  const savedProvider = providers.saved.find((item) => item.provider === provider);
+  return savedProvider?.model ?? providers.defaultModels[provider];
 }

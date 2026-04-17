@@ -4,6 +4,7 @@ from pathlib import Path
 from shutil import rmtree
 from uuid import uuid4
 
+from rappi_intelligence.llm.providers import load_llm_config
 from rappi_intelligence.security.credentials import CredentialStore
 
 
@@ -54,5 +55,22 @@ def test_credentials_store_base_url_and_can_clear_key() -> None:
         )
         assert store.get_api_key("ollama") is None
         assert store.get_base_url("ollama") == "http://localhost:11434"
+    finally:
+        rmtree(workspace_tmp, ignore_errors=True)
+
+
+def test_request_model_overrides_stored_provider_model() -> None:
+    workspace_tmp = Path(".test_artifacts") / uuid4().hex
+    workspace_tmp.mkdir(parents=True, exist_ok=True)
+    try:
+        store = CredentialStore(
+            db_path=workspace_tmp / "credentials.sqlite",
+            key_path=workspace_tmp / "fernet.key",
+        )
+        store.save_provider("ollama", "llama3.1", base_url="http://localhost:11434")
+
+        config = load_llm_config("ollama", model="mistral", store=store)
+
+        assert config.model == "mistral"
     finally:
         rmtree(workspace_tmp, ignore_errors=True)
