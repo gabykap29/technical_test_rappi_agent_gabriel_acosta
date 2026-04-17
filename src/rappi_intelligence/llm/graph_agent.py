@@ -239,7 +239,7 @@ async def generate_executive_report_stream(
             if chunk.content:
                 yield chunk.content
 
-def _generate_report(self, state: AgentState) -> AgentState:
+    def _generate_report(self, state: AgentState) -> AgentState:
         return {"executive_report": "Reporte generado"}
 
     def _format_insights(self, insights: list) -> str:
