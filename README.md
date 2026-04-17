@@ -17,13 +17,14 @@ de insights ejecutivos.
 - Sugerencias proactivas para guiar al usuario no tecnico.
 - Reporte automatico en Markdown con anomalias, tendencias,
   benchmarking, correlaciones y oportunidades.
-- Interfaz web migrada a Next.js + React para preparar despliegue en Vercel.
+- Interfaz web con Next.js + React.
 - API Python local con FastAPI para exponer agente, credenciales y reportes.
 
 ## Setup
 
 ```powershell
-.\env\Scripts\python.exe -m pip install -r requirements.txt
+cd server
+..\env\Scripts\python.exe -m pip install -r requirements.txt
 $env:PYTHONPATH = "src"
 ```
 
@@ -34,20 +35,16 @@ cd frontend
 npm install
 ```
 
-El proyecto detecta automaticamente el workbook `.xlsx` ubicado en la raiz. Si
-se prefiere usar CSV, crear una carpeta `data/` con:
-
-- `metrics_input.csv`
-- `orders.csv`
-- `metric_dictionary.csv` opcional
+El proyecto detecta automaticamente el workbook `.xlsx` ubicado en `server/`.
 
 ## Uso Web Next.js
 
 Levantar backend Python:
 
 ```powershell
+cd server
 $env:PYTHONPATH = "src"
-.\env\Scripts\uvicorn.exe main:app --reload --host 127.0.0.1 --port 8000
+..\env\Scripts\uvicorn.exe rappi_intelligence.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Levantar frontend Next:
@@ -102,9 +99,10 @@ http://localhost:8000
 ## Verificacion
 
 ```powershell
+cd server
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m pytest
-.\env\Scripts\ruff.exe check .
+..\env\Scripts\python.exe -m pytest
+..\env\Scripts\ruff.exe check src
 ```
 
 ## Arquitectura LLM
@@ -128,9 +126,24 @@ La app Next esta en `frontend/` y sigue una separacion por capas:
 - `src/lib`: configuracion, HTTP client y helpers de Ollama.
 - `src/types`: contratos TypeScript compartidos.
 
-Para Vercel, el frontend se puede desplegar como proyecto Next. El backend
-Python debe publicarse por separado o exponerse como servicio HTTP y configurar
-`RAPPI_API_BASE_URL` en las variables de entorno de Vercel.
+## Arquitectura Backend
+
+El backend esta en `server/` con la siguiente estructura:
+
+- `main.py`: entrada FastAPI.
+- `src/rappi_intelligence/`: paquete principal.
+  - `agents/`: agente de operaciones con LangGraph.
+  - `analytics/`: motor de consultas y generador de insights.
+  - `api/routes/`: endpoints de API (chat, providers, dataset, report).
+  - `data/`: utilidades de carga de datos.
+  - `llm/`: clientes para cada provider.
+  - `memory/`: memoria conversacional.
+  - `reports/`: generador de reportes.
+  - `security/`: cifrado de credenciales.
+  - `shared/`: utilidades compartidas.
+
+Para producir el backend a produccion, se puede desplegar como servicio
+independiente y configurar `RAPPI_API_BASE_URL` en las variables de entorno.
 
 ## Costo estimado
 
