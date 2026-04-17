@@ -419,16 +419,17 @@ export function OperationsDashboard() {
             ) : null}
           </section>
 
-          <section className={`panel p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d9e4dd]'}`}>
+          <section style={{ backgroundColor: isDark ? '#1d2420' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd' }} className="panel p-4">
             <h2 className="text-theme mb-3 text-lg font-bold">Demo questions</h2>
             <div className="space-y-4">
               {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
                 <div key={group}>
-                  <h3 className={`mb-2 text-sm font-bold ${isDark ? 'text-green-400' : 'text-[#315246]'}`}>{group}</h3>
+                  <h3 style={{ color: isDark ? '#4ade80' : '#315246' }} className="mb-2 text-sm font-bold">{group}</h3>
                   <div className="space-y-2">
                     {questions.map((item) => (
                       <button
-                        className={`focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm ${isDark ? 'border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500' : 'border-[#d9e4dd] bg-white hover:border-[#16834f]'}`}
+                        style={{ backgroundColor: isDark ? '#121512' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd', color: isDark ? '#c8d4c8' : '#1d2421' }}
+                        className="focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm"
                         key={item}
                         onClick={() => void handleAsk(item)}
                       >
