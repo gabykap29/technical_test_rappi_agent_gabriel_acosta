@@ -221,20 +221,27 @@ class LangGraphOperationsAgent:
         report_prompt = [
             SystemMessage(
                 content=(
-                    "Eres un asistente de análisis executives senior. "
-                    "Genera un reporte ejecutivo en formato Markdown en español. "
-                    "Usa los insights proporcionados y agrega contexto de negocio. "
+                    "Eres un asistente de análisis ejecutivo senior. "
+                    "Genera un reporte ejecutivo en formato MARKDOWN PURO (solo markdown, sin HTML). "
+                    "Usa: # para títulos, ## para subtítulos, **texto** para negritas, - para listas, "
+                    "| Tabla | syntax | para tablas. "
+                    "NO uses tags HTML como <div>, <table>, <pre>, etc. "
                     "Sé detallado y accionable."
                 )
             ),
             HumanMessage(
                 content=(
                     f"Insights generados:\n{self._format_insights(insights)}\n"
-                    "Genera el reporte ejecutivo con:\n"
-                    "## Executive Summary (top 5 insights más importantes)\n"
-                    "## Análisis por categoría (Anomalías, Tendencias, Benchmarks, Correlaciones, Oportunidades)\n"
+                    "Genera el reporte ejecutivo en MARKDOWN PURO:\n"
+                    "## Executive Summary\n"
+                    "Top 5 insights críticos\n\n"
+                    "## Análisis por Categoría\n"
+                    "### Anomalías\n"
+                    "| Métrica | UE | Cambio | Acción |\n"
+                    "|--------|------|--------|--------|\n\n"
                     "## Recomendaciones\n"
-                    "## Metodología"
+                    "## Metodología\n"
+                    "Usa solo markdown. No HTML."
                 )
             ),
         ]
