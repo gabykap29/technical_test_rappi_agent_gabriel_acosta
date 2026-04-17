@@ -1,4 +1,5 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { ThemeContext } from "@/features/agent/OperationsDashboard";
 
 type EvidenceTableProps = {
@@ -10,6 +11,7 @@ type EvidenceTableProps = {
 export function EvidenceTable({ columns, rows, query }: EvidenceTableProps) {
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
+  const [showQuery, setShowQuery] = useState(false);
 
   if (!rows.length) {
     return <p className="text-theme-muted text-sm">No evidence table returned.</p>;
@@ -18,9 +20,23 @@ export function EvidenceTable({ columns, rows, query }: EvidenceTableProps) {
   return (
     <div>
       {query && (
-        <div className={`mb-2 px-2 py-1 rounded text-xs font-mono ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-[#f5f5f5] text-[#666]'}`}>
-          Query: {query}
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowQuery(!showQuery)}
+          className={`mb-2 flex items-center gap-1 text-xs font-medium ${
+            isDark ? "text-blue-400" : "text-blue-600"
+          }`}
+        >
+          {showQuery ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Ver consulta
+        </button>
+      )}
+      {showQuery && query && (
+        <pre className={`mb-2 p-2 rounded text-xs font-mono overflow-x-auto ${
+          isDark ? "bg-gray-800 text-gray-300" : "bg-[#f5f5f5] text-[#444]"
+        }`}>
+          {query}
+        </pre>
       )}
       <div className={`max-h-[420px] overflow-auto rounded-lg border ${isDark ? 'border-gray-700' : 'border-[#d9e4dd]'}`}>
         <table className="text-theme w-full min-w-[680px] border-collapse text-left text-sm">
