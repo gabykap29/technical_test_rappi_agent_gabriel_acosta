@@ -259,24 +259,51 @@ export function OperationsDashboard() {
     }
   }
 
-  async function handleReport() {
+  function handleReport() {
     setLoading(true);
     setError(null);
-    try {
-      const response = await askAgent({
-        question: "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis",
+    setReport("");
+    setActiveTab("report");
+
+    const question = "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis";
+    const messageId = crypto.randomUUID();
+
+    setMessages((current) => [
+      ...current,
+      {
+        id: messageId,
+        question,
+        response: {
+          answer: "",
+          table: [],
+          columns: [],
+          suggestions: [],
+          metadata: {},
+          query: "",
+        },
+      },
+    ]);
+
+    askAgentStream(
+      {
+        question,
         provider: provider,
         model: model,
         base_url: baseUrl,
         require_llm: useLlm,
-      });
-      setReport(response.answer);
-      setActiveTab("report");
-    } catch (requestError) {
-      setError(formatError(requestError));
-    } finally {
-      setLoading(false);
-    }
+      },
+      (chunk) => {
+        if (chunk.type === "table") {
+          setReport((prev) => prev + (chunk.content || ""));
+        } else if (chunk.type === "chunk") {
+          setReport((prev) => prev + (chunk.content || ""));
+          setLoading(false);
+        } else if (chunk.type === "error") {
+          setError(chunk.error || "Unknown error");
+          setLoading(false);
+        }
+      }
+    );
   }
 
   const savedProvider = providers?.saved.find((item) => item.provider === provider);
