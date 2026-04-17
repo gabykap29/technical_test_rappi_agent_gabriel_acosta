@@ -1,5 +1,7 @@
 """High-level conversational agent facade."""
 
+from typing import AsyncGenerator
+
 from rappi_intelligence.analytics.query_engine import QueryEngine
 from rappi_intelligence.data.loader import load_dataset
 from rappi_intelligence.llm.graph_agent import LangGraphOperationsAgent
@@ -32,6 +34,26 @@ class RappiOperationsAgent:
     def ask(self, question: str) -> AgentResponse:
         """Answer a business question and keep conversational context."""
 
+        return self.engine.ask(question)
+
+    async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
+        """Stream answer chunks when the selected engine supports it."""
+
+        if hasattr(self.engine, "ask_stream"):
+            async for chunk in self.engine.ask_stream(question):
+                yield chunk
+            return
+
+        # Fallback for deterministic engine without streaming.
+        response = self.engine.ask(question)
+        if response.answer:
+            yield response.answer
+
+    def evidence(self, question: str) -> AgentResponse:
+        """Return deterministic evidence table without forcing a full LLM response."""
+
+        if hasattr(self.engine, "tools"):
+            return self.engine.tools.ask(question)
         return self.engine.ask(question)
 
     def starter_questions(self) -> list[str]:

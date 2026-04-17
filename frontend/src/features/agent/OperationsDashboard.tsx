@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
+import { useEffect, useMemo, useState, createContext, useContext, type Dispatch, type SetStateAction } from "react";
+import { AlertCircle, CheckCircle2, Loader2, Send, Moon, Sun, ChevronUp, ChevronDown, Settings } from "lucide-react";
 
 import { DatasetMetrics } from "@/components/data/DatasetMetrics";
 import { EvidenceTable } from "@/components/data/EvidenceTable";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, SelectInput, TextInput } from "@/components/ui/Field";
 import {
   askAgent,
+  askAgentStream,
   getDatasetOverview,
   getExecutiveReport,
   getProviders,
@@ -27,10 +28,18 @@ import type {
   ProvidersResponse,
 } from "@/types/api";
 
+type Theme = "light" | "dark";
+export const ThemeContext = createContext<{
+  theme: Theme;
+}>({
+  theme: "light",
+});
+
 type Message = {
   id: string;
   question: string;
   response: ChatResponse;
+  streamingAnswer?: string;
 };
 
 export function OperationsDashboard() {
@@ -48,6 +57,23 @@ export function OperationsDashboard() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<Theme>("light");
+  const [providerCollapsed, setProviderCollapsed] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
+  useEffect(() => {
+    void loadInitialData();
+  }, []);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  }
+
+  const { theme: themeFromContext } = useContext(ThemeContext);
+  const isDark = themeFromContext === "dark";
 
   const baseUrl = useMemo(() => {
     return provider === "ollama" ? getOllamaBaseUrl(ollamaMode) : null;
@@ -65,7 +91,15 @@ export function OperationsDashboard() {
       ]);
       setOverview(overviewData);
       setProviders(providerData);
-      setModel(resolveModelForProvider(providerData, "openai"));
+      
+      if (providerData.saved.length > 0) {
+        const savedProvider = providerData.saved[0];
+        setProvider(savedProvider.provider as ProviderName);
+        setModel(savedProvider.model);
+        setProviderCollapsed(true);
+      } else {
+        setModel(resolveModelForProvider(providerData, "openai"));
+      }
     } catch (requestError) {
       setError(formatError(requestError));
     }
@@ -104,27 +138,123 @@ export function OperationsDashboard() {
     }
     setLoading(true);
     setError(null);
-    try {
-      const response = await askAgent({
-        question: nextQuestion,
-        provider: useLlm ? provider : null,
-        model: useLlm ? model : null,
-        base_url: useLlm ? baseUrl : null,
-        require_llm: useLlm,
-      });
+    
+    const messageId = crypto.randomUUID();
+    
+    if (useLlm) {
+      // Create a placeholder message for streaming
+      const placeholderResponse: ChatResponse = {
+        answer: "",
+        table: [],
+        columns: [],
+        suggestions: [],
+        metadata: {},
+      };
+      
       setMessages((current) => [
         ...current,
         {
-          id: crypto.randomUUID(),
+          id: messageId,
           question: nextQuestion,
-          response,
+          response: placeholderResponse,
+          streamingAnswer: "",
         },
       ]);
+      
       setQuestion("");
-    } catch (requestError) {
-      setError(formatError(requestError));
-    } finally {
-      setLoading(false);
+      
+      try {
+        await askAgentStream(
+          {
+            question: nextQuestion,
+            provider: provider,
+            model: model,
+            base_url: baseUrl,
+            require_llm: useLlm,
+          },
+          (chunk) => {
+            if (chunk.type === "table") {
+              // Update the message with table data
+              setMessages((current) =>
+                current.map((msg) =>
+                  msg.id === messageId
+                    ? {
+                        ...msg,
+                        response: {
+                          ...msg.response,
+                          table: chunk.table as Record<string, unknown>[],
+                          columns: chunk.columns || [],
+                          suggestions: chunk.suggestions || [],
+                        },
+                      }
+                    : msg
+                )
+              );
+            } else if (chunk.type === "chunk") {
+              // Append streaming content
+              setMessages((current) =>
+                current.map((msg) =>
+                  msg.id === messageId
+                    ? {
+                        ...msg,
+                        streamingAnswer: (msg.streamingAnswer || "") + (chunk.content || ""),
+                      }
+                    : msg
+                )
+              );
+            } else if (chunk.type === "error") {
+              setError(chunk.error || "Unknown error");
+            }
+          }
+        );
+        
+        // Finalize: move streaming answer to response
+        setMessages((current) =>
+          current.map((msg) => {
+            if (msg.id === messageId && msg.streamingAnswer) {
+              return {
+                ...msg,
+                response: {
+                  ...msg.response,
+                  answer: msg.streamingAnswer,
+                },
+                streamingAnswer: undefined,
+              };
+            }
+            return msg;
+          })
+        );
+      } catch (requestError) {
+        setError(formatError(requestError));
+        // Remove the placeholder message on error
+        setMessages((current) => current.filter((msg) => msg.id !== messageId));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Non-streaming mode (without LLM)
+      try {
+        const response = await askAgent({
+          question: nextQuestion,
+          provider: null,
+          model: null,
+          base_url: null,
+          require_llm: false,
+        });
+        setMessages((current) => [
+          ...current,
+          {
+            id: messageId,
+            question: nextQuestion,
+            response,
+          },
+        ]);
+        setQuestion("");
+      } catch (requestError) {
+        setError(formatError(requestError));
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -149,109 +279,140 @@ export function OperationsDashboard() {
       : Boolean(savedProvider?.has_api_key);
 
   return (
-    <main className="page-shell">
-      <AppHeader />
-      <DatasetMetrics overview={overview} loading={!overview && !error} />
+    <ThemeContext.Provider value={{ theme }}>
+      <main className="page-shell">
+        <AppHeader theme={theme} onToggleTheme={toggleTheme} />
+        <DatasetMetrics overview={overview} loading={!overview && !error} />
 
       <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
         <aside className="space-y-4">
           <section className="panel p-4">
-            <h2 className="mb-3 text-lg font-bold">LLM provider</h2>
-            <div className="space-y-3">
-              <Field label="Provider">
-                <SelectInput
-                  value={provider}
-                  onChange={(event) => {
-                    const nextProvider = event.target.value as ProviderName;
-                    setProvider(nextProvider);
-                    if (providers) {
-                      setModel(resolveModelForProvider(providers, nextProvider));
-                    }
-                  }}
-                >
-                  {PROVIDERS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-
-              {provider === "ollama" ? (
-                <Field label="Ollama mode">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">LLM provider</h2>
+              <button
+                className="flex items-center gap-1 rounded p-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setProviderCollapsed(!providerCollapsed)}
+              >
+                {providerCollapsed ? (
+                  <>
+                    <Settings size={16} />
+                    <span className="text-xs">Configurar</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronUp size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+            {providerCollapsed || !providers?.saved.length ? null : (
+              <div className={`mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-green-800 bg-green-950' : 'border-[#badbc7] bg-[#edf8f1]'}`}>
+                <div className={`flex items-center gap-2 font-medium ${isDark ? 'text-green-200' : 'text-green-800'}`}>
+                  <CheckCircle2 className={isDark ? 'text-green-400' : 'text-[#16834f]'} size={16} />
+                  Provider configurado
+                </div>
+                <p className={`mt-1 text-xs ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                  {provider} - {model}
+                </p>
+              </div>
+            )}
+            {!providerCollapsed ? (
+              <div className="space-y-3">
+                <Field label="Provider">
                   <SelectInput
-                    value={ollamaMode}
-                    onChange={(event) =>
-                      setOllamaMode(event.target.value as OllamaMode)
-                    }
+                    value={provider}
+                    onChange={(event) => {
+                      const nextProvider = event.target.value as ProviderName;
+                      setProvider(nextProvider);
+                      if (providers) {
+                        setModel(resolveModelForProvider(providers, nextProvider));
+                      }
+                    }}
                   >
-                    <option value="local">{formatOllamaMode("local")}</option>
-                    <option value="cloud">{formatOllamaMode("cloud")}</option>
+                    {PROVIDERS.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
                   </SelectInput>
                 </Field>
-              ) : null}
 
-              {baseUrl ? (
-                <Field label="Base URL">
-                  <TextInput disabled value={baseUrl} />
+                {provider === "ollama" ? (
+                  <Field label="Ollama mode">
+                    <SelectInput
+                      value={ollamaMode}
+                      onChange={(event) =>
+                        setOllamaMode(event.target.value as OllamaMode)
+                      }
+                    >
+                      <option value="local">{formatOllamaMode("local")}</option>
+                      <option value="cloud">{formatOllamaMode("cloud")}</option>
+                    </SelectInput>
+                  </Field>
+                ) : null}
+
+                {baseUrl ? (
+                  <Field label="Base URL">
+                    <TextInput disabled value={baseUrl} />
+                  </Field>
+                ) : null}
+
+                <Field label="Model">
+                  <TextInput value={model} onChange={(event) => setModel(event.target.value)} />
                 </Field>
-              ) : null}
 
-              <Field label="Model">
-                <TextInput value={model} onChange={(event) => setModel(event.target.value)} />
-              </Field>
+                <Field
+                  label="API key"
+                  help={
+                    provider === "ollama" && ollamaMode === "local"
+                      ? "Local Ollama does not require a key."
+                      : "Stored encrypted with Fernet in SQLite."
+                  }
+                >
+                  <TextInput
+                    disabled={provider === "ollama" && ollamaMode === "local"}
+                    placeholder="Paste key and save"
+                    type="password"
+                    value={apiKey}
+                    onChange={(event) => setApiKey(event.target.value)}
+                  />
+                </Field>
 
-              <Field
-                label="API key"
-                help={
-                  provider === "ollama" && ollamaMode === "local"
-                    ? "Local Ollama does not require a key."
-                    : "Stored encrypted with Fernet in SQLite."
-                }
-              >
-                <TextInput
-                  disabled={provider === "ollama" && ollamaMode === "local"}
-                  placeholder="Paste key and save"
-                  type="password"
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                />
-              </Field>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    checked={useLlm}
+                    type="checkbox"
+                    onChange={(event) => setUseLlm(event.target.checked)}
+                  />
+                  Use LangGraph LLM agent
+                </label>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  checked={useLlm}
-                  type="checkbox"
-                  onChange={(event) => setUseLlm(event.target.checked)}
-                />
-                Use LangGraph LLM agent
-              </label>
+                <Button className="w-full" onClick={handleSaveProvider} variant="primary">
+                  Save encrypted provider config
+                </Button>
 
-              <Button className="w-full" onClick={handleSaveProvider} variant="primary">
-                Save encrypted provider config
-              </Button>
-
-              <div className="flex items-center gap-2 text-sm text-[#53625b]">
-                {keyIsConfigured ? (
-                  <CheckCircle2 className="text-[#16834f]" size={16} />
-                ) : (
-                  <AlertCircle className="text-[#c67821]" size={16} />
-                )}
-                {keyIsConfigured ? "Provider ready" : "API key not configured"}
+                <div className="text-theme-muted flex items-center gap-2 text-sm">
+                  {keyIsConfigured ? (
+                    <CheckCircle2 className="text-[#16834f]" size={16} />
+                  ) : (
+                    <AlertCircle className="text-[#c67821]" size={16} />
+                  )}
+                  {keyIsConfigured ? "Provider ready" : "API key not configured"}
+                </div>
               </div>
-            </div>
+            ) : null}
           </section>
 
           <section className="panel p-4">
-            <h2 className="mb-3 text-lg font-bold">Demo questions</h2>
+            <h2 className="text-theme mb-3 text-lg font-bold">Demo questions</h2>
             <div className="space-y-4">
               {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
                 <div key={group}>
-                  <h3 className="mb-2 text-sm font-bold text-[#315246]">{group}</h3>
+                  <h3 className={`mb-2 text-sm font-bold ${isDark ? 'text-green-400' : 'text-[#315246]'}`}>{group}</h3>
                   <div className="space-y-2">
                     {questions.map((item) => (
                       <button
-                        className="focus-ring w-full rounded-lg border border-[#d9e4dd] bg-white px-3 py-2 text-left text-sm hover:border-[#16834f]"
+                        className={`focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200 hover:border-green-500' : 'border-[#d9e4dd] bg-white hover:border-[#16834f]'}`}
                         key={item}
                         onClick={() => void handleAsk(item)}
                       >
@@ -266,7 +427,7 @@ export function OperationsDashboard() {
         </aside>
 
         <section className="panel min-h-[720px] p-4">
-          <div className="mb-4 flex flex-wrap gap-2 border-b border-[#d9e4dd] pb-3">
+          <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
             <TabButton active={activeTab === "ask"} onClick={() => setActiveTab("ask")}>
               Ask the agent
             </TabButton>
@@ -304,7 +465,7 @@ export function OperationsDashboard() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-bold">Executive report</h2>
-                  <p className="text-sm text-[#66746d]">
+                  <p className="text-theme-muted text-sm">
                     Auto-generated from anomalies, trends, benchmarks and opportunities.
                   </p>
                 </div>
@@ -313,11 +474,11 @@ export function OperationsDashboard() {
                 </Button>
               </div>
               {report ? (
-                <div className="rounded-lg border border-[#d9e4dd] bg-white p-4">
+                <div className={`rounded-lg border p-4 ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
                   <MarkdownView markdown={report} />
                 </div>
               ) : (
-                <p className="rounded-lg bg-[#f1f6f3] p-4 text-sm text-[#53625b]">
+                <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? "bg-gray-800" : "bg-[#f1f6f3]"}`}>
                   Generate the report when you want to review executive insights.
                 </p>
               )}
@@ -328,6 +489,7 @@ export function OperationsDashboard() {
         </section>
       </div>
     </main>
+    </ThemeContext.Provider>
   );
 }
 
@@ -348,6 +510,9 @@ function ChatPanel({
   onAsk: () => void;
   onSuggestion: (question: string) => void;
 }) {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -370,20 +535,23 @@ function ChatPanel({
       </div>
 
       {!messages.length ? (
-        <p className="rounded-lg bg-[#f1f6f3] p-4 text-sm text-[#53625b]">
+        <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? 'bg-gray-800' : 'bg-[#f1f6f3]'}`}>
           Start with a demo question from the sidebar or type your own.
         </p>
       ) : null}
 
       <div className="space-y-4">
         {messages.map((message) => (
-          <article className="rounded-lg border border-[#d9e4dd] bg-white p-4" key={message.id}>
-            <p className="mb-3 text-sm font-semibold text-[#315246]">
+          <article className={`rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
+            <p className={`mb-3 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-[#315246]'}`}>
               {message.question}
             </p>
-            <p className="mb-4 text-sm leading-6 text-[#29342f]">
-              {message.response.answer}
-            </p>
+            <div className="text-theme mb-4 text-sm leading-6">
+              <MarkdownView markdown={message.streamingAnswer || message.response.answer} />
+              {message.streamingAnswer !== undefined && (
+                <span className="animate-pulse">▊</span>
+              )}
+            </div>
             <ResponseMetadata metadata={message.response.metadata} />
             <div className="grid gap-4 xl:grid-cols-2">
               <EvidenceTable
@@ -417,7 +585,7 @@ function ChatPanel({
 
 function DemoGuide() {
   return (
-    <div className="space-y-4 text-sm text-[#29342f]">
+    <div className="text-theme space-y-4 text-sm">
       <h2 className="text-xl font-bold">Demo script</h2>
       <ol className="list-decimal space-y-2 pl-5">
         <li>Show dataset coverage at the top.</li>
@@ -449,7 +617,7 @@ function ResponseMetadata({
   }
 
   return (
-    <p className="mb-4 rounded-lg bg-[#f1f6f3] px-3 py-2 text-xs font-semibold text-[#315246]">
+    <p className="text-theme mb-4 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-xs font-semibold">
       Running with {provider ?? "unknown provider"} / {model ?? "unknown model"}
     </p>
   );
@@ -464,12 +632,15 @@ function TabButton({
   children: string;
   onClick: () => void;
 }) {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+
   return (
     <button
       className={`focus-ring px-4 py-2 text-sm font-semibold ${
         active
           ? "bg-[#16834f] text-white"
-          : "border border-[#cbd9d1] bg-white text-[#315246]"
+          : `border text-theme ${isDark ? 'border-gray-600 bg-gray-800' : 'border-[#cbd9d1] bg-white'}`
       }`}
       onClick={onClick}
     >
@@ -485,10 +656,13 @@ function StatusMessage({
   children: string;
   tone: "success" | "error";
 }) {
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+
   const className =
     tone === "success"
-      ? "mb-3 rounded-lg border border-[#badbc7] bg-[#edf8f1] p-3 text-sm text-[#235a3a]"
-      : "mb-3 rounded-lg border border-[#f0c5b4] bg-[#fff3ef] p-3 text-sm text-[#8b3519]";
+      ? `mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-green-800 bg-green-950 text-green-200' : 'border-[#badbc7] bg-[#edf8f1] text-[#235a3a]'}`
+      : `mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-red-800 bg-red-950 text-red-200' : 'border-[#f0c5b4] bg-[#fff3ef] text-[#8b3519]'}`;
   return <p className={className}>{children}</p>;
 }
 

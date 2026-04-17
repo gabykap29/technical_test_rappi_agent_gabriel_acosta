@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, TypedDict
+from typing import Any, AsyncGenerator, TypedDict
 
 import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -54,6 +54,71 @@ class LangGraphOperationsAgent:
         )
         return response
 
+    async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
+        """Answer a question with streaming response."""
+
+        # 1. PLAN - Get the plan
+        metrics = ", ".join(sorted(self.dataset.wide["METRIC"].unique()))
+        countries = ", ".join(sorted(self.dataset.wide["COUNTRY"].unique()))
+
+        plan_prompt = [
+            SystemMessage(
+                content=(
+                    "You are an analytics planner for Rappi operations data. "
+                    "Return only valid JSON. Choose one intent among: ranking, "
+                    "comparison, trend, average, high_low, growth, problematic, "
+                    "fallback. Include metric, country, zone, limit and rationale "
+                    "when available. Do not calculate results."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"Question: {question}\n"
+                    f"Available metrics: {metrics}\n"
+                    f"Available countries: {countries}\n"
+                    'JSON schema: {"intent": string, "metric": string|null, '
+                    '"country": string|null, "zone": string|null, '
+                    '"limit": number|null, "rationale": string}'
+                )
+            ),
+        ]
+
+        plan_message = self.llm.invoke(plan_prompt)
+        plan = _parse_json(str(plan_message.content))
+
+        # 2. EXECUTE - Get the data
+        enriched_question = _enrich_question(question, plan)
+        tool_response = self.tools.ask(enriched_question)
+
+        # 3. RESPOND - Stream the response
+        table_sample = _table_sample(tool_response.table)
+
+        respond_prompt = [
+            SystemMessage(
+                content=(
+                    "You are a senior operations analytics assistant. Answer in "
+                    "Spanish. Be concise, business-oriented and explicit about "
+                    "what the evidence says. Do not invent numbers outside the "
+                    "provided table or base answer."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"User question: {question}\n"
+                    "Planner JSON: "
+                    f"{json.dumps(plan, ensure_ascii=False)}\n"
+                    f"Base analytical answer: {tool_response.answer}\n"
+                    f"Evidence table sample:\n{table_sample}\n"
+                    "Write the final answer and include one practical next step."
+                )
+            ),
+        ]
+
+        # Stream the LLM response
+        async for chunk in self.llm.astream(respond_prompt):
+            if chunk.content:
+                yield chunk.content
+
     def _build_graph(self):
         graph = StateGraph(AgentState)
         graph.add_node("plan", self._plan)
@@ -84,9 +149,9 @@ class LangGraphOperationsAgent:
                     f"Question: {question}\n"
                     f"Available metrics: {metrics}\n"
                     f"Available countries: {countries}\n"
-                    "JSON schema: {\"intent\": string, \"metric\": string|null, "
-                    "\"country\": string|null, \"zone\": string|null, "
-                    "\"limit\": number|null, \"rationale\": string}"
+                    'JSON schema: {"intent": string, "metric": string|null, '
+                    '"country": string|null, "zone": string|null, '
+                    '"limit": number|null, "rationale": string}'
                 )
             ),
         ]

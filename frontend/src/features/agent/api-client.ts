@@ -48,6 +48,70 @@ export function askAgent(payload: ChatRequest): Promise<ChatResponse> {
   });
 }
 
+export type StreamHandler = (chunk: {
+  type: "table" | "chunk" | "error";
+  content?: string;
+  table?: Record<string, unknown>[];
+  columns?: string[];
+  suggestions?: string[];
+  error?: string;
+}) => void;
+
+export function askAgentStream(
+  payload: ChatRequest,
+  onChunk: StreamHandler
+): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      if (!response.body) {
+        throw new Error("Stream response body is empty");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const event of events) {
+          for (const line of event.split("\n")) {
+            if (!line.startsWith("data: ")) {
+              continue;
+            }
+            try {
+              const data = JSON.parse(line.slice(6));
+              onChunk(data);
+            } catch {
+              // Ignore invalid event payloads.
+            }
+          }
+        }
+      }
+
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export function getExecutiveReport(): Promise<ReportResponse> {
   return request<ReportResponse>("/api/report", {
     method: "POST",
