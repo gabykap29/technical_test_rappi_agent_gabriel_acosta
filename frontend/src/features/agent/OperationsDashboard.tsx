@@ -419,7 +419,7 @@ export function OperationsDashboard() {
             ) : null}
           </section>
 
-          <section className="panel p-4">
+          <section className={`panel p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d9e4dd]'}`}>
             <h2 className="text-theme mb-3 text-lg font-bold">Demo questions</h2>
             <div className="space-y-4">
               {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
@@ -428,7 +428,7 @@ export function OperationsDashboard() {
                   <div className="space-y-2">
                     {questions.map((item) => (
                       <button
-                        className={`focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200 hover:border-green-500' : 'border-[#d9e4dd] bg-white hover:border-[#16834f]'}`}
+                        className={`focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm ${isDark ? 'border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500' : 'border-[#d9e4dd] bg-white hover:border-[#16834f]'}`}
                         key={item}
                         onClick={() => void handleAsk(item)}
                       >
