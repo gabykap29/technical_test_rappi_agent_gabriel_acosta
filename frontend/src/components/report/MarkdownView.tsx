@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import type { ReactNode } from "react";
+import { ThemeContext } from "@/features/agent/OperationsDashboard";
 
 type MarkdownViewProps = {
   markdown: string;
@@ -23,20 +24,8 @@ type LinkProps = {
 };
 
 export function MarkdownView({ markdown }: MarkdownViewProps) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof document !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.classList.contains("dark"));
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => obs.disconnect();
-  }, []);
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
 
   if (!markdown) {
     return <p className="text-theme-muted text-sm">No content to display.</p>;
@@ -86,14 +75,14 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
     tbody: ({ children }: TagProps) => (
       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{children}</tbody>
     ),
-    tr: ({ children }: TagProps) => <tr>{children}</tr>,
+    tr: ({ children }: TagProps) => <tr className={isDark ? 'bg-gray-800' : 'bg-white'}>{children}</tr>,
     th: ({ children }: TagProps) => (
-      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">
+      <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-gray-500'}`}>
         {children}
       </th>
     ),
     td: ({ children }: TagProps) => (
-      <td className="whitespace-nowrap px-3 py-2 text-sm">{children}</td>
+      <td className={`px-3 py-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{children}</td>
     ),
     a: ({ href, children }: LinkProps) => (
       <a
