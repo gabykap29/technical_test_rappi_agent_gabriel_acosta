@@ -128,10 +128,20 @@ function normalizeMarkdown(markdown: string) {
   text = extractMarkdownFence(text);
   text = dedentMarkdown(text);
 
-  return text
+  text = text
     .replace(/^```(?:markdown|md|text)?[ \t]*\n/i, "")
-    .replace(/\n```[ \t]*$/i, "")
-    .trim();
+    .replace(/\n```[ \t]*$/i, "");
+
+  text = ensureMarkdownSpacing(text);
+
+  return text.trim();
+}
+
+function ensureMarkdownSpacing(text: string): string {
+  return text
+    .replace(/(#{1,6}\s+[^\n]+)\n([^\n#])/g, "$1\n\n$2")
+    .replace(/(^\d+\.\s[^\n]+)\n([^\n\d])/g, "$1\n\n$2")
+    .replace(/(^-\s[^\n]+)\n([^\n-])/g, "$1\n\n$2");
 }
 
 function parseSerializedMarkdown(value: string) {
@@ -162,15 +172,25 @@ function parseSerializedMarkdown(value: string) {
 }
 
 function extractMarkdownFence(value: string) {
-  const fence = value.match(/```(?:markdown|md|text)?[ \t]*\n([\s\S]*?)\n```/i);
-  if (!fence) {
-    return value;
-  }
+  const fencePatterns = [
+    /```(?:markdown|md|text)?\n([\s\S]*?)```/gi,
+    /```\n([\s\S]*?)```/gi,
+  ];
 
-  const beforeFence = value.slice(0, fence.index).trim();
-  const afterFence = value.slice((fence.index ?? 0) + fence[0].length).trim();
-  if (!beforeFence && !afterFence) {
-    return fence[1];
+  for (const pattern of fencePatterns) {
+    const matches = value.match(pattern);
+    if (matches && matches.length > 0) {
+      let result = value;
+      for (const match of matches) {
+        const contentMatch = match.match(/```(?:markdown|md|text)?\n([\s\S]*?)```/i);
+        if (contentMatch && contentMatch[1]) {
+          result = result.replace(match, contentMatch[1]);
+        }
+      }
+      if (result.trim()) {
+        return result;
+      }
+    }
   }
 
   return value;
