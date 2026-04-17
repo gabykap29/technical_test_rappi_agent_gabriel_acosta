@@ -508,7 +508,7 @@ export function OperationsDashboard() {
                 </Button>
               </div>
               {report ? (
-                <div className={`rounded-lg border p-4 ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
+                <div className={`rounded-lg border p-4 max-h-[70vh] overflow-y-auto ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
                   <MarkdownView markdown={report} />
                 </div>
               ) : (

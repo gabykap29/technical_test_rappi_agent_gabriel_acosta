@@ -210,7 +210,7 @@ class QueryEngine:
             query=query,
         )
 
-    def _high_low_analysis(self, country: str | None) -> AgentResponse:
+    def  _high_low_analysis(self, country: str | None) -> AgentResponse:
         lead = self._metric_rows("Lead Penetration", country)
         perfect = self._metric_rows("Perfect Orders", country)
         query = f"df[df['METRIC'] == 'Lead Penetration'].merge(df[df['METRIC'] == 'Perfect Orders'])"

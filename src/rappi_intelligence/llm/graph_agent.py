@@ -58,15 +58,21 @@ class LangGraphOperationsAgent:
         if is_report_request:
             import asyncio
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
+            async def _get_report():
                 chunks = []
                 async for chunk in self.generate_executive_report_stream():
                     chunks.append(chunk)
-                report = "".join(chunks)
-            finally:
-                loop.close()
+                return "".join(chunks)
+
+            try:
+                report = asyncio.run(_get_report())
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                try:
+                    report = loop.run_until_complete(_get_report())
+                finally:
+                    loop.close()
+
             return AgentResponse(
                 answer=report,
                 metadata={
@@ -203,9 +209,7 @@ class LangGraphOperationsAgent:
         graph.add_edge("report", END)
         return graph.compile()
 
-async def generate_executive_report_stream(
-        self,
-    ) -> AsyncGenerator[str, None]:
+    async def generate_executive_report_stream(self) -> AsyncGenerator[str, None]:
         """Generate an executive report using the LLM with streaming."""
         from rappi_intelligence.analytics.insights import InsightGenerator
 
