@@ -14,7 +14,6 @@ import {
   askAgent,
   askAgentStream,
   getDatasetOverview,
-  getExecutiveReport,
   getProviders,
   saveProvider,
 } from "@/features/agent/api-client";
@@ -264,8 +263,14 @@ export function OperationsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await getExecutiveReport();
-      setReport(response.markdown);
+      const response = await askAgent({
+        question: "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis",
+        provider: provider,
+        model: model,
+        base_url: baseUrl,
+        require_llm: useLlm,
+      });
+      setReport(response.answer);
       setActiveTab("report");
     } catch (requestError) {
       setError(formatError(requestError));
@@ -468,7 +473,7 @@ export function OperationsDashboard() {
                 <div>
                   <h2 className="text-xl font-bold">Executive report</h2>
                   <p className="text-theme-muted text-sm">
-                    Auto-generated from anomalies, trends, benchmarks and opportunities.
+                    Generado por IA con análisis de anomalías, tendencias y oportunidades.
                   </p>
                 </div>
                 <Button disabled={loading} onClick={handleReport} variant="primary">
