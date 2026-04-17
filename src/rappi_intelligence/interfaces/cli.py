@@ -5,11 +5,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from rappi_intelligence.agent import RappiOperationsAgent
-from rappi_intelligence.config import DEFAULT_PROVIDER_MODELS
-from rappi_intelligence.credentials import CredentialStore
-from rappi_intelligence.llm_providers import SUPPORTED_PROVIDERS
-from rappi_intelligence.reporting import write_reports
+from rappi_intelligence.agents.operations_agent import RappiOperationsAgent
+from rappi_intelligence.llm.providers import SUPPORTED_PROVIDERS
+from rappi_intelligence.reports.rendering import write_reports
+from rappi_intelligence.security.credentials import CredentialStore
+from rappi_intelligence.shared.config import DEFAULT_PROVIDER_MODELS
 
 
 def main() -> None:

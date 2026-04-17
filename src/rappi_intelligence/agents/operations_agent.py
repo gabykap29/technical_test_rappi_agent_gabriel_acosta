@@ -1,14 +1,14 @@
 """High-level conversational agent facade."""
 
-from rappi_intelligence.data_loader import load_dataset
-from rappi_intelligence.llm_agent import LangGraphOperationsAgent
-from rappi_intelligence.llm_providers import (
+from rappi_intelligence.analytics.query_engine import QueryEngine
+from rappi_intelligence.data.loader import load_dataset
+from rappi_intelligence.llm.graph_agent import LangGraphOperationsAgent
+from rappi_intelligence.llm.providers import (
     LLMConfigurationError,
     build_chat_model,
     load_llm_config,
 )
-from rappi_intelligence.models import AgentResponse
-from rappi_intelligence.query_engine import QueryEngine
+from rappi_intelligence.shared.models import AgentResponse
 
 
 class RappiOperationsAgent:

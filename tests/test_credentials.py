@@ -4,7 +4,7 @@ from pathlib import Path
 from shutil import rmtree
 from uuid import uuid4
 
-from rappi_intelligence.credentials import CredentialStore
+from rappi_intelligence.security.credentials import CredentialStore
 
 
 def test_credentials_are_encrypted_at_rest() -> None:

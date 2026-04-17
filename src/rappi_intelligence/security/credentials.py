@@ -8,7 +8,7 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet
 
-from rappi_intelligence.config import FERNET_KEY_PATH, SECRETS_DB_PATH
+from rappi_intelligence.shared.config import FERNET_KEY_PATH, SECRETS_DB_PATH
 
 
 @dataclass(frozen=True)

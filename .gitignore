@@ -10,7 +10,7 @@ __pycache__/
 pytest-cache-files-*/
 .ruff_cache/
 .tmp/
-reports/
+/reports/
 exports/
 .streamlit/
 .secrets/

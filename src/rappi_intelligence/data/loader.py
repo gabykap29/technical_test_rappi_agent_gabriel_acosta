@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from rappi_intelligence.config import (
+from rappi_intelligence.shared.config import (
     CANONICAL_WEEK_COLUMNS,
     DATA_DIR,
     DEFAULT_EXCEL_PATTERN,
@@ -19,7 +19,7 @@ from rappi_intelligence.config import (
     ROLLING_WEEK_COLUMNS,
     SEGMENT_COLUMNS,
 )
-from rappi_intelligence.models import AnalyticsDataset
+from rappi_intelligence.shared.models import AnalyticsDataset
 
 
 class DataValidationError(ValueError):

@@ -85,28 +85,30 @@ flowchart TD
 
 ## Modulos
 
-- `rappi_intelligence.config`: constantes de paths, hojas, columnas semanales,
-  metricas positivas/negativas, aliases y modelos default por provider.
-- `rappi_intelligence.credentials`: SQLite local con API keys cifradas mediante
-  Fernet.
-- `rappi_intelligence.llm_providers`: factory de modelos LangChain para OpenAI,
+- `rappi_intelligence.shared.config`: constantes de paths, hojas, columnas
+  semanales, metricas positivas/negativas, aliases y modelos default.
+- `rappi_intelligence.shared.models`: dataclasses de dominio
+  (`AnalyticsDataset`, `AgentResponse`, `Insight`).
+- `rappi_intelligence.security.credentials`: SQLite local con API keys cifradas
+  mediante Fernet.
+- `rappi_intelligence.llm.providers`: factory de modelos LangChain para OpenAI,
   Anthropic, Gemini y Ollama local/cloud.
-- `rappi_intelligence.llm_agent`: workflow LangGraph con nodos `plan`,
+- `rappi_intelligence.llm.graph_agent`: workflow LangGraph con nodos `plan`,
   `execute` y `respond`.
-- `rappi_intelligence.models`: dataclasses de dominio (`AnalyticsDataset`,
-  `AgentResponse`, `Insight`).
-- `rappi_intelligence.data_loader`: deteccion del Excel, lectura de hojas,
-  validacion de esquema, normalizacion de columnas y conversion wide-to-long.
-- `rappi_intelligence.query_engine`: herramientas analiticas pandas. Extrae
-  entidades, clasifica intenciones y ejecuta analisis auditables.
-- `rappi_intelligence.agent`: fachada stateful que expone `ask()` y preguntas
-  iniciales para la interfaz; construye LangGraph si hay provider configurado.
-- `rappi_intelligence.insights`: generador de anomalias, tendencias
+- `rappi_intelligence.data.loader`: deteccion del Excel, lectura de hojas,
+  validacion de esquema, normalizacion y conversion wide-to-long.
+- `rappi_intelligence.analytics.query_engine`: herramientas analiticas pandas.
+  Extrae entidades, clasifica intenciones y ejecuta analisis auditables.
+- `rappi_intelligence.analytics.insights`: generador de anomalias, tendencias
   preocupantes, benchmarking, correlaciones y oportunidades.
-- `rappi_intelligence.reporting`: render de reportes Markdown/HTML.
-- `rappi_intelligence.api`: API FastAPI para el frontend Next.
-- `rappi_intelligence.cli`: interfaz de linea de comandos para demo, preguntas
-  puntuales y generacion de reportes.
+- `rappi_intelligence.agents.operations_agent`: fachada stateful que expone
+  `ask()` y construye LangGraph si hay provider configurado.
+- `rappi_intelligence.reports.rendering`: render de reportes Markdown/HTML.
+- `rappi_intelligence.api.main`: ensamblado FastAPI.
+- `rappi_intelligence.api.routes`: rutas HTTP separadas por recurso.
+- `rappi_intelligence.api.schemas`: modelos Pydantic de requests.
+- `rappi_intelligence.interfaces.cli`: interfaz de linea de comandos para demo,
+  preguntas puntuales y generacion de reportes.
 - `streamlit_app.py`: interfaz legacy en Streamlit.
 - `frontend/src/app`: rutas Next, layout y API routes proxy.
 - `frontend/src/features/agent`: estado y flujos del agente en React.

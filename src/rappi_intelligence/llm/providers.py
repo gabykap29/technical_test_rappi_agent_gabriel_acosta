@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from rappi_intelligence.config import DEFAULT_PROVIDER_MODELS
-from rappi_intelligence.credentials import CredentialStore
+from rappi_intelligence.security.credentials import CredentialStore
+from rappi_intelligence.shared.config import DEFAULT_PROVIDER_MODELS
 
 SUPPORTED_PROVIDERS = ("openai", "anthropic", "gemini", "ollama")
 

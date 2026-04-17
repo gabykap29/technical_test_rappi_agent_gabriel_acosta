@@ -1,7 +1,7 @@
 """Regression tests for required business questions."""
 
-from rappi_intelligence.agent import RappiOperationsAgent
-from rappi_intelligence.insights import InsightGenerator
+from rappi_intelligence.agents.operations_agent import RappiOperationsAgent
+from rappi_intelligence.analytics.insights import InsightGenerator
 
 
 def test_agent_answers_top_zones() -> None:

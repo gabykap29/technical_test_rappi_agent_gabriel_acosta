@@ -5,9 +5,9 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from rappi_intelligence.config import REPORTS_DIR
-from rappi_intelligence.insights import InsightGenerator
-from rappi_intelligence.models import AnalyticsDataset, Insight
+from rappi_intelligence.analytics.insights import InsightGenerator
+from rappi_intelligence.shared.config import REPORTS_DIR
+from rappi_intelligence.shared.models import AnalyticsDataset, Insight
 
 
 def render_markdown_report(dataset: AnalyticsDataset) -> str:

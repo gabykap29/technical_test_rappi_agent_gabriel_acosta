@@ -9,8 +9,8 @@ import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from rappi_intelligence.models import AgentResponse, AnalyticsDataset
-from rappi_intelligence.query_engine import QueryEngine
+from rappi_intelligence.analytics.query_engine import QueryEngine
+from rappi_intelligence.shared.models import AgentResponse, AnalyticsDataset
 
 
 class AgentState(TypedDict, total=False):

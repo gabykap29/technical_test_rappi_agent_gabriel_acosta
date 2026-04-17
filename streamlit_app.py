@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import streamlit as st
 
-from rappi_intelligence.agent import RappiOperationsAgent
-from rappi_intelligence.config import DEFAULT_PROVIDER_MODELS
-from rappi_intelligence.credentials import CredentialStore
-from rappi_intelligence.llm_providers import (
+from rappi_intelligence.agents.operations_agent import RappiOperationsAgent
+from rappi_intelligence.llm.providers import (
     SUPPORTED_PROVIDERS,
     LLMConfigurationError,
 )
-from rappi_intelligence.models import AgentResponse
-from rappi_intelligence.reporting import render_markdown_report
+from rappi_intelligence.reports.rendering import render_markdown_report
+from rappi_intelligence.security.credentials import CredentialStore
+from rappi_intelligence.shared.config import DEFAULT_PROVIDER_MODELS
+from rappi_intelligence.shared.models import AgentResponse
 
 
 @st.cache_resource

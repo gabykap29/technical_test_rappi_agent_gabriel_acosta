@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from rappi_intelligence.config import (
+from rappi_intelligence.shared.config import (
     CANONICAL_WEEK_COLUMNS,
     IDENTIFIER_COLUMNS,
     NEGATIVE_METRICS,
 )
-from rappi_intelligence.models import AnalyticsDataset, Insight
+from rappi_intelligence.shared.models import AnalyticsDataset, Insight
 
 
 class InsightGenerator:

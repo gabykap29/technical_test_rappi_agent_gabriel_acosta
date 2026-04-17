@@ -47,42 +47,42 @@ Guardar una API key cifrada:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider openai --model gpt-4o-mini --api-key "TU_API_KEY"
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider openai --model gpt-4o-mini --api-key "TU_API_KEY"
 ```
 
 Configurar Ollama local:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --ollama-mode local --model llama3.1
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider ollama --ollama-mode local --model llama3.1
 ```
 
 Configurar Ollama Cloud:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --save-key --provider ollama --ollama-mode cloud --model llama3.1 --api-key "TU_OLLAMA_TOKEN"
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider ollama --ollama-mode cloud --model llama3.1 --api-key "TU_OLLAMA_TOKEN"
 ```
 
 Pregunta unica:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --provider openai --ask "Cuales son las 5 zonas con mayor Lead Penetration esta semana?"
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --provider openai --ask "Cuales son las 5 zonas con mayor Lead Penetration esta semana?"
 ```
 
 Modo interactivo:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli
 ```
 
 Generar reportes:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.cli --report
+.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --report
 ```
 
 Los reportes se escriben en `reports/executive_report.md` y
@@ -94,7 +94,7 @@ Levantar backend Python:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\uvicorn.exe rappi_intelligence.api:app --reload --port 8000
+.\env\Scripts\uvicorn.exe rappi_intelligence.api.main:app --reload --port 8000
 ```
 
 Levantar frontend Next:

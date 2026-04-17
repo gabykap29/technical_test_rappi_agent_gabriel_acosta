@@ -9,14 +9,14 @@ from dataclasses import dataclass
 import pandas as pd
 import plotly.express as px
 
-from rappi_intelligence.config import (
+from rappi_intelligence.shared.config import (
     CANONICAL_WEEK_COLUMNS,
     IDENTIFIER_COLUMNS,
     METRIC_ALIASES,
     NEGATIVE_METRICS,
     POSITIVE_METRICS,
 )
-from rappi_intelligence.models import AgentResponse, AnalyticsDataset
+from rappi_intelligence.shared.models import AgentResponse, AnalyticsDataset
 
 
 @dataclass
