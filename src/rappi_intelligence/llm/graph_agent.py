@@ -56,7 +56,17 @@ class LangGraphOperationsAgent:
         )
 
         if is_report_request:
-            report = self.generate_executive_report()
+            import asyncio
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                chunks = []
+                async for chunk in self.generate_executive_report_stream():
+                    chunks.append(chunk)
+                report = "".join(chunks)
+            finally:
+                loop.close()
             return AgentResponse(
                 answer=report,
                 metadata={
@@ -80,6 +90,23 @@ class LangGraphOperationsAgent:
 
     async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
         """Answer a question with streaming response."""
+
+        normalized = question.lower()
+        is_report_request = any(
+            keyword in normalized
+            for keyword in [
+                "reporte",
+                "reporte ejecutivo",
+                "executive report",
+                "informe",
+                "reporte de operaciones",
+            ]
+        )
+
+        if is_report_request:
+            async for chunk in self.generate_executive_report_stream():
+                yield chunk
+            return
 
         # 1. PLAN - Get the plan
         metrics = ", ".join(sorted(self.dataset.wide["METRIC"].unique()))
@@ -176,19 +203,24 @@ class LangGraphOperationsAgent:
         graph.add_edge("report", END)
         return graph.compile()
 
-    def generate_executive_report(self) -> str:
-        """Generate an executive report using the LLM to enhance insights."""
+async def generate_executive_report_stream(
+        self,
+    ) -> AsyncGenerator[str, None]:
+        """Generate an executive report using the LLM with streaming."""
         from rappi_intelligence.analytics.insights import InsightGenerator
 
         generator = InsightGenerator(self.dataset)
         insights = generator.generate()
 
+        yield "# Generando análisis de datos...\n\n"
+
         report_prompt = [
             SystemMessage(
                 content=(
-                    "Eres un asistente de análisis ejecutivo senior. "
+                    "Eres un asistente de análisis executives senior. "
                     "Genera un reporte ejecutivo en formato Markdown en español. "
-                    "Usa los insights proporcionados y agrega contexto de negocio."
+                    "Usa los insights proporcionados y agrega contexto de negocio. "
+                    "Sé detallado y accionable."
                 )
             ),
             HumanMessage(
@@ -196,16 +228,19 @@ class LangGraphOperationsAgent:
                     f"Insights generados:\n{self._format_insights(insights)}\n"
                     "Genera el reporte ejecutivo con:\n"
                     "## Executive Summary (top 5 insights más importantes)\n"
-                    "## Análisis por categoría\n"
+                    "## Análisis por categoría (Anomalías, Tendencias, Benchmarks, Correlaciones, Oportunidades)\n"
+                    "## Recomendaciones\n"
                     "## Metodología"
                 )
             ),
         ]
 
-        message = self.llm.invoke(report_prompt)
-        return str(message.content)
+        async for chunk in self.llm.astream(report_prompt):
+            if chunk.content:
+                yield chunk.content
 
     def _generate_report(self, state: AgentState) -> AgentState:
+        return {"executive_report": "Reporte generado"}
         return {"executive_report": self.generate_executive_report()}
 
     def _format_insights(self, insights: list) -> str:
