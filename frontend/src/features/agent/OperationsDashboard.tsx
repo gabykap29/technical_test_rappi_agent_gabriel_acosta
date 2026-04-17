@@ -186,6 +186,7 @@ export function OperationsDashboard() {
                           table: chunk.table as Record<string, unknown>[],
                           columns: chunk.columns || [],
                           suggestions: chunk.suggestions || [],
+                          query: chunk.query || "",
                         },
                       }
                     : msg

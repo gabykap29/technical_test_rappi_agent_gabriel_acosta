@@ -54,6 +54,7 @@ export type StreamHandler = (chunk: {
   table?: Record<string, unknown>[];
   columns?: string[];
   suggestions?: string[];
+  query?: string;
   error?: string;
 }) => void;
 
