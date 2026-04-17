@@ -42,12 +42,12 @@ class InsightGenerator:
         data["DELTA"] = data["L0W"] - data["L1W"]
         data["PCT_DELTA"] = _safe_divide(data["DELTA"], data["L1W"])
         data["IS_NEGATIVE"] = data["METRIC"].isin(NEGATIVE_METRICS)
-        data["BAD_MOVE"] = (
-            (data["PCT_DELTA"] <= -0.10) & ~data["IS_NEGATIVE"]
-        ) | ((data["PCT_DELTA"] >= 0.10) & data["IS_NEGATIVE"])
-        data["GOOD_MOVE"] = (
-            (data["PCT_DELTA"] >= 0.10) & ~data["IS_NEGATIVE"]
-        ) | ((data["PCT_DELTA"] <= -0.10) & data["IS_NEGATIVE"])
+        data["BAD_MOVE"] = ((data["PCT_DELTA"] <= -0.10) & ~data["IS_NEGATIVE"]) | (
+            (data["PCT_DELTA"] >= 0.10) & data["IS_NEGATIVE"]
+        )
+        data["GOOD_MOVE"] = ((data["PCT_DELTA"] >= 0.10) & ~data["IS_NEGATIVE"]) | (
+            (data["PCT_DELTA"] <= -0.10) & data["IS_NEGATIVE"]
+        )
 
         selected = data[data["BAD_MOVE"] | data["GOOD_MOVE"]].copy()
         selected["MAGNITUDE"] = selected["PCT_DELTA"].abs()
@@ -122,9 +122,9 @@ class InsightGenerator:
         data["GAP"] = data["L0W"] - data["PEER_MEDIAN"]
         data["PCT_GAP"] = _safe_divide(data["GAP"], data["PEER_MEDIAN"])
         data["IS_NEGATIVE"] = data["METRIC"].isin(NEGATIVE_METRICS)
-        data["UNDERPERFORMING"] = (
-            (data["PCT_GAP"] < -0.20) & ~data["IS_NEGATIVE"]
-        ) | ((data["PCT_GAP"] > 0.20) & data["IS_NEGATIVE"])
+        data["UNDERPERFORMING"] = ((data["PCT_GAP"] < -0.20) & ~data["IS_NEGATIVE"]) | (
+            (data["PCT_GAP"] > 0.20) & data["IS_NEGATIVE"]
+        )
         selected = data[data["UNDERPERFORMING"]].copy()
         selected["MAGNITUDE"] = selected["PCT_GAP"].abs()
         selected = selected.sort_values("MAGNITUDE", ascending=False).head(limit)
@@ -233,8 +233,7 @@ class InsightGenerator:
                 Insight(
                     category="Oportunidades",
                     title=(
-                        f"{row['ZONE']} combina alto volumen "
-                        "con bajo Lead Penetration"
+                        f"{row['ZONE']} combina alto volumen con bajo Lead Penetration"
                     ),
                     detail=(
                         f"{row['COUNTRY']} / {row['CITY']} tiene "
@@ -257,7 +256,12 @@ def _metric(data: pd.DataFrame, metric: str) -> pd.DataFrame:
 
 
 def _safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
-    return numerator.div(denominator.replace({0: pd.NA})).fillna(0)
+    threshold = 0.0001
+    safe_denominator = denominator.replace({0: pd.NA})
+    safe_denominator = safe_denominator.where(
+        safe_denominator.abs() >= threshold, pd.NA
+    )
+    return numerator.div(safe_denominator).fillna(0)
 
 
 def _safe_scalar_divide(numerator: float, denominator: float) -> float:
