@@ -419,8 +419,8 @@ export function OperationsDashboard() {
             ) : null}
           </section>
 
-          <section style={{ backgroundColor: isDark ? '#1d2420' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd' }} className="panel p-4">
-            <h2 className="text-theme mb-3 text-lg font-bold">Demo questions</h2>
+          <div style={{ backgroundColor: isDark ? '#1d2420' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd', color: isDark ? '#c8d4c8' : '#1d2421' }} className="panel p-4">
+            <h2 style={{ color: isDark ? '#c8d4c8' : '#1d2421' }} className="mb-3 text-lg font-bold">Demo questions</h2>
             <div className="space-y-4">
               {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
                 <div key={group}>
@@ -440,7 +440,7 @@ export function OperationsDashboard() {
                 </div>
               ))}
             </div>
-          </section>
+          </div>
         </aside>
 
         <section className="panel min-w-0 min-h-[720px] p-4">
