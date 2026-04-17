@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from rappi_intelligence.security.credentials import CredentialStore
-from rappi_intelligence.shared.config import DEFAULT_PROVIDER_MODELS
+from rappi_intelligence.shared.config import CLOUD_MODE, DEFAULT_PROVIDER_MODELS
 
 SUPPORTED_PROVIDERS = ("openai", "anthropic", "gemini", "ollama")
 
@@ -43,6 +43,8 @@ def load_llm_config(
             f"Unsupported provider '{provider}'. Use one of: "
             f"{', '.join(SUPPORTED_PROVIDERS)}."
         )
+    if CLOUD_MODE and provider == "ollama":
+        raise LLMConfigurationError("Ollama is disabled when CLOUD=true.")
 
     credential_store = store or CredentialStore()
     configured_model = model or credential_store.get_model(provider)

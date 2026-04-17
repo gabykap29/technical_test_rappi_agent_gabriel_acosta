@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from typing import Any, TypedDict
 
 import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
+from plotly.utils import PlotlyJSONEncoder
 
 from rappi_intelligence.analytics.query_engine import QueryEngine
 from rappi_intelligence.shared.models import AgentResponse, AnalyticsDataset
@@ -94,7 +95,11 @@ class LangGraphOperationsAgent:
         )
         return response
 
-    async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
+    async def ask_stream(
+        self,
+        question: str,
+        conversation_history: Sequence[object] | None = None,
+    ) -> AsyncGenerator[str, None]:
         """Answer a question with streaming response."""
 
         normalized = question.lower()
@@ -117,6 +122,7 @@ class LangGraphOperationsAgent:
         # 1. PLAN - Get the plan
         metrics = ", ".join(sorted(self.dataset.wide["METRIC"].unique()))
         countries = ", ".join(sorted(self.dataset.wide["COUNTRY"].unique()))
+        history_context = _format_conversation_history(conversation_history)
 
         plan_prompt = [
             SystemMessage(
@@ -130,6 +136,7 @@ class LangGraphOperationsAgent:
             ),
             HumanMessage(
                 content=(
+                    f"Conversation history:\n{history_context}\n\n"
                     f"Question: {question}\n"
                     f"Available metrics: {metrics}\n"
                     f"Available countries: {countries}\n"
@@ -161,6 +168,7 @@ class LangGraphOperationsAgent:
             ),
             HumanMessage(
                 content=(
+                    f"Conversation history:\n{history_context}\n\n"
                     f"User question: {question}\n"
                     "Planner JSON: "
                     f"{json.dumps(plan, ensure_ascii=False)}\n"
@@ -211,12 +219,53 @@ class LangGraphOperationsAgent:
 
     async def generate_executive_report_stream(self) -> AsyncGenerator[str, None]:
         """Generate an executive report using the LLM with streaming."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
         from rappi_intelligence.analytics.insights import InsightGenerator
 
         generator = InsightGenerator(self.dataset)
         insights = generator.generate()
 
+        generated_at = datetime.now(ZoneInfo("America/Buenos_Aires"))
+        timestamp = generated_at.strftime("%Y-%m-%d %H:%M:%S")
+        generated_at_label = generated_at.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        wide = self.dataset.wide
+        available_metrics = list(wide["METRIC"].unique()) if "METRIC" in wide.columns else []
+        available_countries = list(wide["COUNTRY"].unique()) if "COUNTRY" in wide.columns else []
+        week_columns = [col for col in wide.columns if col.startswith("L") and col.endswith("W")]
+        technical_query = (
+            "InsightGenerator.generate() sobre dataset.wide; "
+            f"METRIC in {available_metrics}; "
+            f"COUNTRY in {available_countries}; "
+            f"WEEK columns in {week_columns}; "
+            f"rows={len(wide)}"
+        )
+
+        query_info = {
+            "metrics_analyzed": available_metrics[:10],
+            "countries": available_countries,
+            "time_period": f"{week_columns[-1] if week_columns else 'N/A'} to {week_columns[0] if week_columns else 'N/A'}",
+            "total_zones": int(wide["ZONE"].nunique()) if "ZONE" in wide.columns else 0,
+            "total_rows": len(wide),
+            "technical_query": technical_query,
+        }
+
+        yield _json_dumps({
+            "type": "metadata",
+            "timestamp": timestamp,
+            "insights_count": len(insights),
+            "query_info": query_info,
+        }) + "\n\n"
+
         yield "# Generando análisis de datos...\n\n"
+
+        charts_data = self._generate_report_charts(insights)
+        for chart in charts_data:
+            yield _json_dumps({
+                "type": "chart",
+                "chart": chart,
+            }) + "\n\n"
 
         report_prompt = [
             SystemMessage(
@@ -234,7 +283,13 @@ class LangGraphOperationsAgent:
             HumanMessage(
                 content=(
                     f"Insights generados:\n{self._format_insights(insights)}\n"
+                    f"Datos analizados:\n"
+                    f"- Fecha y hora actual: {generated_at_label}\n"
+                    f"- Métricas: {', '.join(available_metrics[:5])}\n"
+                    f"- Países: {', '.join(available_countries)}\n"
+                    f"- Período: {week_columns[-1] if week_columns else 'N/A'} a {week_columns[0] if week_columns else 'N/A'}\n"
                     "Genera el reporte ejecutivo en MARKDOWN PURO:\n"
+                    "Incluye la fecha y hora de generación al inicio del reporte.\n"
                     "## Executive Summary\n"
                     "Top 5 insights críticos\n\n"
                     "## Análisis por Categoría\n"
@@ -251,6 +306,72 @@ class LangGraphOperationsAgent:
         async for chunk in self.llm.astream(report_prompt):
             if chunk.content:
                 yield chunk.content
+
+    def _generate_report_charts(self, insights: list) -> list[dict]:
+        """Generate chart data for the executive report."""
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from rappi_intelligence.shared.models import Insight
+
+        charts = []
+        wide = self.dataset.wide
+
+        severity_counts = {}
+        for insight in insights:
+            if isinstance(insight, Insight):
+                severity_counts[insight.severity] = severity_counts.get(insight.severity, 0) + 1
+
+        if severity_counts:
+            fig = go.Figure(data=[go.Pie(
+                labels=list(severity_counts.keys()),
+                values=list(severity_counts.values()),
+                marker_colors=['#ff3b30', '#ff7a1a', '#ffb15c', '#d82f19']
+            )])
+            fig.update_layout(
+                title="Distribución por Severidad",
+                template="plotly_white",
+            )
+            charts.append({
+                "type": "pie",
+                "title": "Distribución por Severidad",
+                "data": _json_safe(fig.to_dict()),
+            })
+
+        metric_data = wide[wide["METRIC"].isin(["Gross Profit UE", "Perfect Orders", "Orders"])].groupby(
+            ["COUNTRY", "METRIC"]
+        )["L0W"].sum().reset_index()
+        if not metric_data.empty:
+            fig = px.bar(
+                metric_data,
+                x="COUNTRY",
+                y="L0W",
+                color="METRIC",
+                title="Métricas Clave por País",
+                barmode="group"
+            )
+            fig.update_layout(template="plotly_white")
+            charts.append({
+                "type": "bar",
+                "title": "Métricas Clave por País",
+                "data": _json_safe(fig.to_dict()),
+            })
+
+        country_zones = wide.groupby("COUNTRY")["ZONE"].nunique().reset_index()
+        if not country_zones.empty:
+            fig = px.bar(
+                country_zones,
+                x="COUNTRY",
+                y="ZONE",
+                title="Zonas por País"
+            )
+            fig.update_layout(template="plotly_white")
+            charts.append({
+                "type": "bar",
+                "title": "Zonas por País",
+                "data": _json_safe(fig.to_dict()),
+            })
+
+        return charts
 
     def _generate_report(self, state: AgentState) -> AgentState:
         return {"executive_report": "Reporte generado"}
@@ -354,3 +475,28 @@ def _table_sample(table: pd.DataFrame | None) -> str:
     if table is None or table.empty:
         return "No table returned."
     return table.head(12).to_string(index=False)
+
+
+def _format_conversation_history(messages: Sequence[object] | None) -> str:
+    if not messages:
+        return "No previous conversation."
+
+    lines = []
+    for message in messages[-12:]:
+        role = getattr(message, "role", "")
+        content = getattr(message, "content", "")
+        if not role or not content:
+            continue
+        clean_content = " ".join(str(content).split())
+        if len(clean_content) > 800:
+            clean_content = f"{clean_content[:800]}..."
+        lines.append(f"{role}: {clean_content}")
+    return "\n".join(lines) if lines else "No previous conversation."
+
+
+def _json_dumps(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, cls=PlotlyJSONEncoder)
+
+
+def _json_safe(payload: Any) -> Any:
+    return json.loads(_json_dumps(payload))

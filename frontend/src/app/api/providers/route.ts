@@ -29,3 +29,18 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE() {
+  try {
+    const result = await requestPythonApi<{ status: string; cleared: number }>(
+      "/providers/clear",
+      { method: "POST" },
+    );
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 400 },
+    );
+  }
+}

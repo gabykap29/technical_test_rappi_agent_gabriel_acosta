@@ -29,7 +29,7 @@ type ChartData = {
   chartType?: "bar" | "line" | "scatter" | "pie" | "area";
 };
 
-const COLORS = ["#16834f", "#4ade80", "#22c55e", "#86efac", "#166534", "#6ee7b7", "#3f6212", "#a7f3d0"];
+const COLORS = ["#ff3b30", "#ff7a1a", "#ffb15c", "#d82f19", "#ff5f3b", "#f59e0b", "#b91c1c", "#fed7aa"];
 
 export function DataChart({ rows, columns, chartType: defaultType = "bar" }: ChartData) {
   const { theme } = useContext(ThemeContext);
@@ -73,8 +73,9 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
   ] as const;
 
   const renderChart = () => {
-    const textColor = isDark ? "#c8d4c8" : "#1d2421";
-    const gridColor = isDark ? "#2d3631" : "#d9e4dd";
+    const textColor = isDark ? "#f3f4f6" : "#1f1f1f";
+    const gridColor = isDark ? "#343434" : "#e5e7eb";
+    const tooltipBackground = isDark ? "#1f1f1f" : "#ffffff";
 
     switch (chartType) {
       case "line":
@@ -84,7 +85,7 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: textColor }} />
               <YAxis tick={{ fontSize: 10, fill: textColor }} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? "#1d2420" : "#fff", borderColor: gridColor }} />
+              <Tooltip contentStyle={{ backgroundColor: tooltipBackground, borderColor: gridColor }} />
               <Legend />
               {numericColumns.map((col, idx) => (
                 <Line key={col} type="monotone" dataKey={col} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={false} />
@@ -100,7 +101,7 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: textColor }} />
               <YAxis tick={{ fontSize: 10, fill: textColor }} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? "#1d2420" : "#fff", borderColor: gridColor }} />
+              <Tooltip contentStyle={{ backgroundColor: tooltipBackground, borderColor: gridColor }} />
               <Legend />
               {numericColumns.map((col, idx) => (
                 <Area key={col} type="monotone" dataKey={col} stroke={COLORS[idx % COLORS.length]} fill={COLORS[idx % COLORS.length]} fillOpacity={0.3} />
@@ -116,7 +117,7 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis dataKey={PrimaryYAxis} name={PrimaryYAxis} tick={{ fontSize: 10, fill: textColor }} />
               <YAxis dataKey={SecondaryYAxis || numericColumns[0]} name={SecondaryYAxis || numericColumns[0]} tick={{ fontSize: 10, fill: textColor }} />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ backgroundColor: isDark ? "#1d2420" : "#fff", borderColor: gridColor }} />
+              <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ backgroundColor: tooltipBackground, borderColor: gridColor }} />
               <Legend />
               <Scatter name={PrimaryYAxis} data={data} fill={COLORS[0]} />
               {SecondaryYAxis && <Scatter name={SecondaryYAxis} data={data} fill={COLORS[1]} />}
@@ -141,7 +142,7 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: isDark ? "#1d2420" : "#fff", borderColor: gridColor }} />
+              <Tooltip contentStyle={{ backgroundColor: tooltipBackground, borderColor: gridColor }} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -154,7 +155,7 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: textColor }} />
               <YAxis tick={{ fontSize: 10, fill: textColor }} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? "#1d2420" : "#fff", borderColor: gridColor }} />
+              <Tooltip contentStyle={{ backgroundColor: tooltipBackground, borderColor: gridColor }} />
               <Legend />
               {numericColumns.map((col, idx) => (
                 <Bar key={col} dataKey={col} fill={COLORS[idx % COLORS.length]} />
@@ -177,11 +178,11 @@ export function DataChart({ rows, columns, chartType: defaultType = "bar" }: Cha
               className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
                 chartType === type.id
                   ? isDark
-                    ? "bg-green-700 text-white"
-                    : "bg-[#16834f] text-white"
+                    ? "bg-[#d82f19] text-white"
+                    : "bg-[#ff4f2e] text-white"
                   : isDark
                     ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    : "bg-[#e7f5ec] text-[#16834f] hover:bg-[#d1e9db]"
+                    : "bg-[var(--accent-soft)] text-[#9a3412] hover:bg-[#ffe0cf]"
               }`}
             >
               <Icon size={12} />

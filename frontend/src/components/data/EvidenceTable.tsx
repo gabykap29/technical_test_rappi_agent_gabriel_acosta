@@ -38,12 +38,12 @@ export function EvidenceTable({ columns, rows, query }: EvidenceTableProps) {
           {query}
         </pre>
       )}
-      <div className={`max-h-[420px] overflow-auto rounded-lg border ${isDark ? 'border-gray-700' : 'border-[#d9e4dd]'}`}>
+      <div className={`max-h-[420px] overflow-auto rounded-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
         <table className="text-theme w-full min-w-[680px] border-collapse text-left text-sm">
-          <thead className={`sticky top-0 ${isDark ? 'bg-gray-800' : 'bg-[#f1f6f3]'}`}>
+          <thead className={`sticky top-0 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
             <tr>
               {columns.map((column) => (
-                <th className={`border-b px-3 py-2 ${isDark ? 'border-gray-700' : 'border-[#d9e4dd]'}`} key={column}>
+                <th className={`border-b px-3 py-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}`} key={column}>
                   {column}
                 </th>
               ))}
@@ -53,10 +53,10 @@ export function EvidenceTable({ columns, rows, query }: EvidenceTableProps) {
             {rows.map((row, rowIndex) => (
               <tr className={rowIndex % 2 === 0 
                 ? (isDark ? 'bg-gray-900' : 'bg-white')
-                : (isDark ? 'bg-gray-800' : 'bg-[#fbfdfc]')
+                : (isDark ? 'bg-gray-800' : 'bg-gray-50')
               } key={rowIndex}>
                 {columns.map((column) => (
-                  <td className={`border-b px-3 py-2 ${isDark ? 'border-gray-700' : 'border-[#eef3f0]'}`} key={column}>
+                  <td className={`border-b px-3 py-2 ${isDark ? 'border-gray-700' : 'border-gray-100'}`} key={column}>
                     {formatValue(row[column])}
                   </td>
                 ))}

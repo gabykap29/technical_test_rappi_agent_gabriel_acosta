@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, createContext, useContext } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Send, ChevronUp, Settings } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
+import { TourProvider, useTour } from "@reactour/tour";
+import { AlertCircle, CheckCircle2, Loader2, Send, ChevronUp, Settings, FileDown } from "lucide-react";
 
 import { DatasetMetrics } from "@/components/data/DatasetMetrics";
 import { DataChart } from "@/components/data/DataChart";
+import { PlotlyChart } from "@/components/data/PlotlyChart";
 import { EvidenceTable } from "@/components/data/EvidenceTable";
 import { MiniBarChart } from "@/components/data/MiniBarChart";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -18,7 +20,7 @@ import {
   getProviders,
   saveProvider,
 } from "@/features/agent/api-client";
-import { PROVIDERS, QUICK_QUESTIONS } from "@/features/agent/constants";
+import { CLOUD_MODE, PROVIDERS, QUICK_QUESTIONS } from "@/features/agent/constants";
 import { formatOllamaMode, getOllamaBaseUrl } from "@/lib/ollama";
 import type {
   ChatResponse,
@@ -26,6 +28,8 @@ import type {
   OllamaMode,
   ProviderName,
   ProvidersResponse,
+  ReportChart,
+  ReportMetadata,
 } from "@/types/api";
 
 type Theme = "light" | "dark";
@@ -42,6 +46,49 @@ type Message = {
   streamingAnswer?: string;
 };
 
+const TOUR_STEPS = [
+  {
+    selector: "[data-tour='platform-intro']",
+    content:
+      "Esta plataforma permite consultar datos operativos de Rappi con un agente de IA, revisar evidencia, detectar insights y generar reportes ejecutivos.",
+  },
+  {
+    selector: "[data-tour='dataset-metrics']",
+    content:
+      "Estos indicadores resumen la cobertura del dataset: países, zonas, métricas y volumen analítico disponible.",
+  },
+  {
+    selector: "[data-tour='llm-config']",
+    content:
+      "Primero configurá el proveedor LLM. Elegí OpenAI, Anthropic, Gemini u Ollama si está habilitado localmente.",
+  },
+  {
+    selector: "[data-tour='api-key']",
+    content:
+      "Pegá la API key del proveedor y guardala. Se almacena cifrada y se limpia automáticamente cuando cerrás la sesión.",
+  },
+  {
+    selector: "[data-tour='demo-questions']",
+    content:
+      "Usá estas preguntas demo para probar rankings, comparaciones, diagnósticos y tendencias sin tener que escribir desde cero.",
+  },
+  {
+    selector: "[data-tour='chat-panel']",
+    content:
+      "Acá conversás con el agente. El backend guarda un history_id para que el modelo recuerde el contexto de la conversación.",
+  },
+  {
+    selector: "[data-tour='chat-input']",
+    content:
+      "Escribí una pregunta operativa y enviála. El agente devuelve respuesta, tabla de evidencia, gráficos y la consulta técnica.",
+  },
+  {
+    selector: "[data-tour='report-tab']",
+    content:
+      "En Executive report podés generar un informe completo con anomalías, tendencias, oportunidades, gráficos y recomendaciones. Luego podés exportarlo como PDF con gráficos o como Markdown sin gráficos.",
+  },
+];
+
 export function OperationsDashboard() {
   const [overview, setOverview] = useState<DatasetOverview | null>(null);
   const [providers, setProviders] = useState<ProvidersResponse | null>(null);
@@ -52,13 +99,17 @@ export function OperationsDashboard() {
   const [useLlm, setUseLlm] = useState(true);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationHistoryId, setConversationHistoryId] = useState<string | null>(null);
   const [report, setReport] = useState("");
+  const [reportMetadata, setReportMetadata] = useState<Omit<ReportMetadata, "type"> | null>(null);
+  const [reportCharts, setReportCharts] = useState<ReportChart["chart"][]>([]);
   const [activeTab, setActiveTab] = useState<"ask" | "report" | "guide">("ask");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [providerCollapsed, setProviderCollapsed] = useState(false);
+  const [demoQuestionsCollapsed, setDemoQuestionsCollapsed] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -68,12 +119,24 @@ export function OperationsDashboard() {
     void loadInitialData();
   }, []);
 
+  useEffect(() => {
+    function clearKeysOnExit() {
+      clearProviderKeysBestEffort();
+    }
+
+    window.addEventListener("pagehide", clearKeysOnExit);
+    window.addEventListener("beforeunload", clearKeysOnExit);
+    return () => {
+      window.removeEventListener("pagehide", clearKeysOnExit);
+      window.removeEventListener("beforeunload", clearKeysOnExit);
+    };
+  }, []);
+
   function toggleTheme() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   }
 
-  const { theme: themeFromContext } = useContext(ThemeContext);
-  const isDark = themeFromContext === "dark";
+  const isDark = theme === "dark";
 
   const baseUrl = useMemo(() => {
     return provider === "ollama" ? getOllamaBaseUrl(ollamaMode) : null;
@@ -87,9 +150,12 @@ export function OperationsDashboard() {
       ]);
       setOverview(overviewData);
       setProviders(providerData);
-      
-      if (providerData.saved.length > 0) {
-        const savedProvider = providerData.saved[0];
+
+      const selectableSavedProvider = providerData.saved.find((item) =>
+        PROVIDERS.includes(item.provider as ProviderName)
+      );
+      if (selectableSavedProvider) {
+        const savedProvider = selectableSavedProvider;
         setProvider(savedProvider.provider as ProviderName);
         setModel(savedProvider.model);
         setProviderCollapsed(true);
@@ -164,13 +230,16 @@ export function OperationsDashboard() {
         await askAgentStream(
           {
             question: nextQuestion,
+            history_id: conversationHistoryId,
             provider: provider,
             model: model,
             base_url: baseUrl,
             require_llm: useLlm,
           },
           (chunk) => {
-            if (chunk.type === "table") {
+            if (chunk.type === "history") {
+              setConversationHistoryId(chunk.history_id);
+            } else if (chunk.type === "table") {
               // Update the message with table data
               setMessages((current) =>
                 current.map((msg) =>
@@ -234,11 +303,15 @@ export function OperationsDashboard() {
       try {
         const response = await askAgent({
           question: nextQuestion,
+          history_id: conversationHistoryId,
           provider: null,
           model: null,
           base_url: null,
           require_llm: false,
         });
+        if (response.history_id) {
+          setConversationHistoryId(response.history_id);
+        }
         setMessages((current) => [
           ...current,
           {
@@ -260,6 +333,8 @@ export function OperationsDashboard() {
     setLoading(true);
     setError(null);
     setReport("");
+    setReportMetadata(null);
+    setReportCharts([]);
     setActiveTab("report");
 
     const reportQuestion = "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis";
@@ -268,13 +343,24 @@ export function OperationsDashboard() {
       await askAgentStream(
         {
           question: reportQuestion,
+          history_id: conversationHistoryId,
           provider,
           model,
           base_url: baseUrl,
           require_llm: useLlm,
         },
         (chunk) => {
-          if (chunk.type === "chunk" && typeof chunk.content === "string") {
+          if (chunk.type === "history") {
+            setConversationHistoryId(chunk.history_id);
+          } else if (chunk.type === "metadata") {
+            setReportMetadata({
+              timestamp: chunk.timestamp,
+              insights_count: chunk.insights_count,
+              query_info: chunk.query_info,
+            });
+          } else if (chunk.type === "chart" && chunk.chart) {
+            setReportCharts((prev) => [...prev, chunk.chart]);
+          } else if (chunk.type === "chunk" && typeof chunk.content === "string") {
             setReport((current) => current + chunk.content);
           } else if (chunk.type === "error") {
             setError(chunk.error || "Unknown error");
@@ -288,6 +374,22 @@ export function OperationsDashboard() {
     }
   }
 
+  function handleExportReport() {
+    setActiveTab("report");
+    window.requestAnimationFrame(() => {
+      window.print();
+    });
+  }
+
+  function handleExportReportMarkdown() {
+    if (!report) {
+      return;
+    }
+    const markdown = buildReportMarkdown(report, reportMetadata);
+    const filename = `executive-report-${new Date().toISOString().slice(0, 10)}.md`;
+    downloadTextFile(filename, markdown, "text/markdown;charset=utf-8");
+  }
+
   const savedProvider = providers?.saved.find((item) => item.provider === provider);
   const keyIsConfigured =
     provider === "ollama" && ollamaMode === "local"
@@ -296,13 +398,63 @@ export function OperationsDashboard() {
 
   return (
     <ThemeContext.Provider value={{ theme }}>
+      <TourProvider
+        steps={TOUR_STEPS}
+        nextButton={({ currentStep, setCurrentStep, setIsOpen, stepsLength }) => {
+          const isLastStep = currentStep === stepsLength - 1;
+          return (
+            <button
+              className="rounded-lg bg-[image:var(--accent-gradient)] px-3 py-2 text-sm font-bold text-white"
+              onClick={() => {
+                if (isLastStep) {
+                  setIsOpen(false);
+                  setCurrentStep(0);
+                  return;
+                }
+                setCurrentStep((step) => step + 1);
+              }}
+              type="button"
+            >
+              {isLastStep ? "Finalizar" : "Siguiente"}
+            </button>
+          );
+        }}
+        prevButton={({ currentStep, setCurrentStep }) => (
+          <button
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={currentStep === 0}
+            onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
+            type="button"
+          >
+            Anterior
+          </button>
+        )}
+        styles={{
+          popover: (base) => ({
+            ...base,
+            backgroundColor: theme === "dark" ? "#1f1f1f" : "#ffffff",
+            borderRadius: 8,
+            color: theme === "dark" ? "#f3f4f6" : "#1f1f1f",
+          }),
+          badge: (base) => ({
+            ...base,
+            background: "linear-gradient(135deg, #ff3b30 0%, #ff7a1a 100%)",
+          }),
+        }}
+      >
       <main className="page-shell">
-        <AppHeader theme={theme} onToggleTheme={toggleTheme} />
-        <DatasetMetrics overview={overview} loading={!overview && !error} />
+        <div className="no-print">
+          <div data-tour="platform-intro">
+            <AppHeader theme={theme} onToggleTheme={toggleTheme} />
+          </div>
+          <div data-tour="dataset-metrics">
+            <DatasetMetrics overview={overview} loading={!overview && !error} />
+          </div>
+        </div>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="space-y-4">
-          <section className="panel p-4">
+        <aside className="no-print space-y-4">
+          <section className="panel p-4" data-tour="llm-config">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold">LLM provider</h2>
               <button
@@ -322,12 +474,12 @@ export function OperationsDashboard() {
               </button>
             </div>
             {providerCollapsed || !providers?.saved.length ? null : (
-              <div className={`mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-green-800 bg-green-950' : 'border-[#badbc7] bg-[#edf8f1]'}`}>
-                <div className={`flex items-center gap-2 font-medium ${isDark ? 'text-green-200' : 'text-green-800'}`}>
-                  <CheckCircle2 className={isDark ? 'text-green-400' : 'text-[#16834f]'} size={16} />
+              <div className={`mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-[#7a2a1a] bg-[#3a2018]' : 'border-[#ffd1bc] bg-[#fff0e7]'}`}>
+                <div className={`flex items-center gap-2 font-medium ${isDark ? 'text-orange-200' : 'text-[#9a3412]'}`}>
+                  <CheckCircle2 className="text-[var(--accent)]" size={16} />
                   Provider configurado
                 </div>
-                <p className={`mt-1 text-xs ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                <p className={`mt-1 text-xs ${isDark ? 'text-orange-200' : 'text-[#9a3412]'}`}>
                   {provider} - {model}
                 </p>
               </div>
@@ -353,7 +505,7 @@ export function OperationsDashboard() {
                   </SelectInput>
                 </Field>
 
-                {provider === "ollama" ? (
+                {provider === "ollama" && !CLOUD_MODE ? (
                   <Field label="Ollama mode">
                     <SelectInput
                       value={ollamaMode}
@@ -377,6 +529,7 @@ export function OperationsDashboard() {
                   <TextInput value={model} onChange={(event) => setModel(event.target.value)} />
                 </Field>
 
+                <div data-tour="api-key">
                 <Field
                   label="API key"
                   help={
@@ -393,6 +546,7 @@ export function OperationsDashboard() {
                     onChange={(event) => setApiKey(event.target.value)}
                   />
                 </Field>
+                </div>
 
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -409,48 +563,70 @@ export function OperationsDashboard() {
 
                 <div className="text-theme-muted flex items-center gap-2 text-sm">
                   {keyIsConfigured ? (
-                    <CheckCircle2 className="text-[#16834f]" size={16} />
+                    <CheckCircle2 className="text-[var(--accent)]" size={16} />
                   ) : (
                     <AlertCircle className="text-[#c67821]" size={16} />
                   )}
                   {keyIsConfigured ? "Provider ready" : "API key not configured"}
                 </div>
+                {CLOUD_MODE ? (
+                  <p className="text-theme-muted text-xs">
+                    Cloud mode enabled: local Ollama is disabled.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </section>
 
-          <div style={{ backgroundColor: isDark ? '#1d2420' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd', color: isDark ? '#c8d4c8' : '#1d2421' }} className="panel p-4">
-            <h2 style={{ color: isDark ? '#c8d4c8' : '#1d2421' }} className="mb-3 text-lg font-bold">Demo questions</h2>
-            <div className="space-y-4">
-              {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
-                <div key={group}>
-                  <h3 style={{ color: isDark ? '#4ade80' : '#315246' }} className="mb-2 text-sm font-bold">{group}</h3>
-                  <div className="space-y-2">
-                    {questions.map((item) => (
-                      <button
-                        style={{ backgroundColor: isDark ? '#121512' : '#ffffff', borderColor: isDark ? '#2d3631' : '#d9e4dd', color: isDark ? '#c8d4c8' : '#1d2421' }}
-                        className="focus-ring w-full rounded-lg border px-3 py-2 text-left text-sm"
-                        key={item}
-                        onClick={() => void handleAsk(item)}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+          <div className="panel max-h-[60dvh] overflow-y-auto p-4" data-tour="demo-questions">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Demo questions</h2>
+              <button
+                className="flex items-center gap-1 rounded p-1 text-sm hover:bg-[var(--accent-soft)]"
+                onClick={() => setDemoQuestionsCollapsed(!demoQuestionsCollapsed)}
+              >
+                {demoQuestionsCollapsed ? (
+                  <>
+                    <Settings size={16} />
+                    <span className="text-xs">Mostrar</span>
+                  </>
+                ) : (
+                  <ChevronUp size={16} />
+                )}
+              </button>
             </div>
+            {!demoQuestionsCollapsed ? (
+              <div className="space-y-4">
+                {Object.entries(QUICK_QUESTIONS).map(([group, questions]) => (
+                  <div key={group}>
+                    <h3 className="mb-2 text-sm font-bold text-[var(--accent)]">{group}</h3>
+                    <div className="space-y-2">
+                      {questions.map((item) => (
+                        <button
+                          className="focus-ring w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm text-[var(--foreground)] hover:border-[var(--accent)]"
+                          key={item}
+                          onClick={() => void handleAsk(item)}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </aside>
 
         <section className="panel min-w-0 min-h-[720px] p-4">
-          <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
+          <div className="no-print mb-4 flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
             <TabButton active={activeTab === "ask"} onClick={() => setActiveTab("ask")}>
               Ask the agent
             </TabButton>
             <TabButton
               active={activeTab === "report"}
               onClick={() => setActiveTab("report")}
+              tourId="report-tab"
             >
               Executive report
             </TabButton>
@@ -471,31 +647,69 @@ export function OperationsDashboard() {
               messages={messages}
               question={question}
               setMessages={setMessages}
+              onClearHistory={() => setConversationHistoryId(null)}
               setQuestion={setQuestion}
               onAsk={() => void handleAsk()}
-              onSuggestion={(suggestion) => void handleAsk(suggestion)}
             />
           ) : null}
 
           {activeTab === "report" ? (
-            <div className="min-w-0 space-y-4">
+            <div className="report-print-area min-w-0 space-y-4">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-xl font-bold">Executive report</h2>
                   <p className="text-theme-muted text-sm">
-                    Generado por IA con análisis de anomalías, tendencias y oportunidades.
+                    {reportMetadata
+                      ? `Generado el ${new Date(reportMetadata.timestamp).toLocaleString()} - ${reportMetadata.insights_count} insights - ${reportMetadata.query_info?.total_zones || 0} zonas - ${reportMetadata.query_info?.time_period || ''}`
+                      : "Generado por IA con análisis de anomalías, tendencias y oportunidades."}
                   </p>
                 </div>
-                <Button disabled={loading} onClick={() => void handleReport()} variant="primary">
-                  {loading ? "Generating..." : "Generate report now"}
-                </Button>
+                <div className="no-print flex flex-wrap gap-2" data-tour="report-actions">
+                  <Button
+                    className="inline-flex items-center gap-2"
+                    disabled={!report && reportCharts.length === 0}
+                    onClick={handleExportReport}
+                  >
+                    <FileDown size={17} />
+                    Export PDF
+                  </Button>
+                  <Button
+                    className="inline-flex items-center gap-2"
+                    disabled={!report}
+                    onClick={handleExportReportMarkdown}
+                  >
+                    <FileDown size={17} />
+                    Export MD
+                  </Button>
+                  <Button disabled={loading} onClick={() => void handleReport()} variant="primary">
+                    {loading ? "Generating..." : "Generate report now"}
+                  </Button>
+                </div>
               </div>
+              {reportMetadata?.query_info?.technical_query ? (
+                <section className="no-print rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)]">
+                  <h3 className="mb-2 text-sm font-semibold">Consulta técnica del informe</h3>
+                  <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-xs text-[var(--foreground)]">
+                    <code>{reportMetadata.query_info.technical_query}</code>
+                  </pre>
+                </section>
+              ) : null}
+              {reportCharts.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {reportCharts.map((chart, idx) => (
+                    <div key={idx} className="rounded-lg border border-[var(--border)] p-3">
+                      <h3 className="mb-2 text-sm font-semibold">{chart.title}</h3>
+                      <PlotlyChart data={chart.data as Record<string, unknown>} title={chart.title} />
+                    </div>
+                  ))}
+                </div>
+              )}
               {report ? (
-                <div className={`max-h-[70vh] min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border p-4 ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
+                <div className="report-markdown max-h-[70vh] min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 text-[var(--foreground)]">
                   <MarkdownView markdown={report} />
                 </div>
               ) : (
-                <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? "bg-gray-800" : "bg-[#f1f6f3]"}`}>
+                <p className="no-print text-theme-muted rounded-lg bg-[var(--background)] p-4 text-sm">
                   Generate the report when you want to review executive insights.
                 </p>
               )}
@@ -506,6 +720,8 @@ export function OperationsDashboard() {
         </section>
       </div>
     </main>
+      <TourLauncher />
+      </TourProvider>
     </ThemeContext.Provider>
   );
 }
@@ -515,44 +731,47 @@ function ChatPanel({
   messages,
   question,
   setMessages,
+  onClearHistory,
   setQuestion,
   onAsk,
-  onSuggestion,
 }: {
   loading: boolean;
   messages: Message[];
   question: string;
   setMessages: (messages: Message[]) => void;
+  onClearHistory: () => void;
   setQuestion: (value: string) => void;
   onAsk: () => void;
-  onSuggestion: (question: string) => void;
 }) {
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
-  const messagesEndRef = typeof window !== "undefined" ? require("react").useRef(null) : null;
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  require("react").useEffect(() => {
-    if (loading && messagesEndRef?.current) {
+  useEffect(() => {
+    if (loading && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [loading, messagesEndRef]);
 
   return (
-    <div className={`flex flex-col h-[calc(100vh-200px)] ${isDark ? 'bg-gray-900' : 'bg-[#f1f6f3]'}`}>
+    <div
+      className={`flex h-[60dvh] min-h-[420px] flex-col overflow-hidden ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}
+      data-tour="chat-panel"
+    >
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {!messages.length ? (
-          <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? 'bg-gray-800' : 'bg-[#f1f6f3]'}`}>
+          <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
             Start with a demo question from the sidebar or type your own.
           </p>
         ) : (
           messages.map((message) => (
             <div key={message.id} className="space-y-3">
-              <div className={`rounded-lg p-3 ${isDark ? 'bg-[#1d3528] border border-green-700' : 'bg-[#e7f5ec] border border-[#16834f]'}`}>
-                <p className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-[#16834f]'}`}>
+              <div className={`rounded-lg p-3 ${isDark ? 'border border-[#7a2a1a] bg-[#3a2018]' : 'border border-[#ff4f2e] bg-[#fff0e7]'}`}>
+                <p className="text-sm font-semibold text-[var(--accent)]">
                   You: {message.question}
                 </p>
               </div>
-              <article className={`min-w-0 overflow-hidden rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
+              <article className={`min-w-0 overflow-hidden rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`} key={message.id}>
                 <div className="text-theme mb-4 min-w-0 text-sm leading-6">
                   <MarkdownView markdown={message.streamingAnswer || message.response.answer} />
                   {loading && message.streamingAnswer !== undefined && (
@@ -582,7 +801,10 @@ function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className={`flex gap-2 p-4 border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`}>
+      <div
+        className={`flex gap-2 p-4 border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
+        data-tour="chat-input"
+      >
         <TextInput
           placeholder="Ask about rankings, trends, comparisons or problematic zones"
           value={question}
@@ -596,7 +818,13 @@ function ChatPanel({
         <Button disabled={loading} onClick={onAsk} variant="primary">
           {loading ? <Loader2 className="animate-spin" size={17} /> : <Send size={17} />}
         </Button>
-        <Button disabled={!messages.length} onClick={() => setMessages([])}>
+        <Button
+          disabled={!messages.length}
+          onClick={() => {
+            setMessages([]);
+            onClearHistory();
+          }}
+        >
           Clear
         </Button>
       </div>
@@ -644,14 +872,38 @@ function ResponseMetadata({
   );
 }
 
+function TourLauncher() {
+  const { setIsOpen } = useTour();
+
+  useEffect(() => {
+    const tourWasSeen = window.localStorage.getItem("rappi-tour-seen") === "true";
+    if (!tourWasSeen) {
+      window.localStorage.setItem("rappi-tour-seen", "true");
+      window.requestAnimationFrame(() => setIsOpen(true));
+    }
+  }, [setIsOpen]);
+
+  return (
+    <button
+      className="no-print fixed bottom-5 right-5 z-50 rounded-lg bg-[image:var(--accent-gradient)] px-4 py-3 text-sm font-bold text-white shadow-lg"
+      onClick={() => setIsOpen(true)}
+      type="button"
+    >
+      Guía rápida
+    </button>
+  );
+}
+
 function TabButton({
   active,
   children,
   onClick,
+  tourId,
 }: {
   active: boolean;
   children: string;
   onClick: () => void;
+  tourId?: string;
 }) {
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
@@ -660,9 +912,10 @@ function TabButton({
     <button
       className={`focus-ring px-4 py-2 text-sm font-semibold ${
         active
-          ? "bg-[#16834f] text-white"
-          : `border text-theme ${isDark ? 'border-gray-600 bg-gray-800' : 'border-[#cbd9d1] bg-white'}`
+          ? "bg-[image:var(--accent-gradient)] text-white"
+          : `border text-theme ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white'}`
       }`}
+      data-tour={tourId}
       onClick={onClick}
     >
       {children}
@@ -682,13 +935,62 @@ function StatusMessage({
 
   const className =
     tone === "success"
-      ? `mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-green-800 bg-green-950 text-green-200' : 'border-[#badbc7] bg-[#edf8f1] text-[#235a3a]'}`
+      ? `mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-[#7a2a1a] bg-[#3a2018] text-orange-200' : 'border-[#ffd1bc] bg-[#fff0e7] text-[#9a3412]'}`
       : `mb-3 rounded-lg border p-3 text-sm ${isDark ? 'border-red-800 bg-red-950 text-red-200' : 'border-[#f0c5b4] bg-[#fff3ef] text-[#8b3519]'}`;
   return <p className={className}>{children}</p>;
 }
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
+}
+
+function buildReportMarkdown(
+  report: string,
+  metadata: Omit<ReportMetadata, "type"> | null,
+): string {
+  const lines = [report.trim()];
+  const technicalQuery = metadata?.query_info?.technical_query;
+  if (technicalQuery) {
+    lines.push(
+      "",
+      "## Consulta técnica del informe",
+      "",
+      "```text",
+      technicalQuery,
+      "```",
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function clearProviderKeysBestEffort() {
+  const payload = JSON.stringify({ reason: "client_exit" });
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/api/providers/clear", blob);
+    return;
+  }
+
+  void fetch("/api/providers/clear", {
+    method: "POST",
+    body: payload,
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+  }).catch(() => {
+    // Page unload cleanup is best effort.
+  });
 }
 
 function resolveModelForProvider(

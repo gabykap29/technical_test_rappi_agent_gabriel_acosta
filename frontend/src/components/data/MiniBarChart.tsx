@@ -33,9 +33,9 @@ export function MiniBarChart({ rows, columns }: MiniBarChartProps) {
           <span className="text-theme-muted truncate text-sm" title={row.label}>
             {row.label}
           </span>
-          <div className={`h-3 rounded-full ${isDark ? 'bg-gray-700' : 'bg-[#e4ece7]'}`}>
+          <div className={`h-3 rounded-full ${isDark ? 'bg-gray-700' : 'bg-[#ffe2d1]'}`}>
             <div
-              className="h-3 rounded-full bg-[#16834f]"
+              className="h-3 rounded-full bg-[image:var(--accent-gradient)]"
               style={{ width: `${Math.max((Math.abs(row.value) / maxValue) * 100, 3)}%` }}
             />
           </div>

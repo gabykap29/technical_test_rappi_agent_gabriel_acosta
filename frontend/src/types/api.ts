@@ -32,10 +32,41 @@ export type ProviderConfigPayload = {
 
 export type ChatRequest = {
   question: string;
+  history_id?: string | null;
   provider: ProviderName | null;
   model: string | null;
   base_url: string | null;
   require_llm: boolean;
+};
+
+export type ReportMetadata = {
+  type: "metadata";
+  timestamp: string;
+  insights_count: number;
+  query_info?: {
+    metrics_analyzed: string[];
+    countries: string[];
+    time_period: string;
+    total_zones: number;
+    total_rows: number;
+    technical_query?: string;
+  };
+};
+
+export type ReportChart = {
+  type: "chart";
+  chart: {
+    type: string;
+    title: string;
+    data: Record<string, unknown>;
+  };
+};
+
+export type ReportChunk = ReportMetadata | ReportChart | { type: "chunk"; content: string } | { type: "error"; error: string };
+
+export type HistoryChunk = {
+  type: "history";
+  history_id: string;
 };
 
 export type ChatResponse = {
@@ -45,4 +76,5 @@ export type ChatResponse = {
   suggestions: string[];
   metadata: Record<string, unknown>;
   query: string;
+  history_id?: string;
 };

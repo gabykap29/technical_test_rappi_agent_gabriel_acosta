@@ -17,6 +17,7 @@ class ChatRequest(BaseModel):
     """Chat request payload."""
 
     question: str = Field(min_length=1)
+    history_id: str | None = None
     provider: str | None = None
     model: str | None = None
     base_url: str | None = None

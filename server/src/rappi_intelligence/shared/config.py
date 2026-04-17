@@ -1,5 +1,6 @@
 """Project configuration and shared constants."""
 
+import os
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -7,6 +8,7 @@ DATA_DIR = ROOT_DIR / "data"
 SECRETS_DIR = ROOT_DIR / ".secrets"
 FERNET_KEY_PATH = SECRETS_DIR / "fernet.key"
 SECRETS_DB_PATH = SECRETS_DIR / "credentials.sqlite"
+CONVERSATIONS_DB_PATH = SECRETS_DIR / "conversations.sqlite"
 
 DEFAULT_EXCEL_PATTERN = (
     "Sistema de Analisis Inteligente para Operaciones Rappi - Dummy Data*.xlsx"
@@ -70,3 +72,5 @@ DEFAULT_PROVIDER_MODELS = {
     "gemini": "gemini-1.5-flash",
     "ollama": "llama3.1",
 }
+
+CLOUD_MODE = os.getenv("CLOUD", "false").lower() == "true"

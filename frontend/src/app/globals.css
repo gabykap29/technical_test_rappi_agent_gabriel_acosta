@@ -1,25 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f8f7;
-  --foreground: #1d2421;
-  --muted: #5b6862;
-  --border: #d9e4dd;
+  --background: #f7f7f7;
+  --foreground: #1f1f1f;
+  --muted: #666666;
+  --border: #e5e7eb;
   --surface: #ffffff;
-  --accent: #16834f;
-  --accent-soft: #e7f5ec;
-  --warning: #c67821;
+  --accent: #ff4f2e;
+  --accent-strong: #d82f19;
+  --accent-soft: #fff0e7;
+  --accent-gradient: linear-gradient(135deg, #ff3b30 0%, #ff7a1a 100%);
+  --warning: #ff8a1f;
 }
 
 html.dark {
-  --background: #121512;
-  --foreground: #c8d4c8;
-  --muted: #8a9690;
-  --border: #2d3631;
-  --surface: #1d2420;
-  --accent: #4ade80;
-  --accent-soft: #1d3528;
-  --warning: #dba356;
+  --background: #121212;
+  --foreground: #f3f4f6;
+  --muted: #a3a3a3;
+  --border: #343434;
+  --surface: #1f1f1f;
+  --accent: #ff7a1a;
+  --accent-strong: #ff4f2e;
+  --accent-soft: #3a2018;
+  --accent-gradient: linear-gradient(135deg, #ff3b30 0%, #ff8a1f 100%);
+  --warning: #ffb15c;
 }
 
 * {
@@ -61,7 +65,7 @@ button {
 }
 
 .focus-ring:focus-visible {
-  outline: 3px solid rgba(22, 131, 79, 0.22);
+  outline: 3px solid rgba(255, 79, 46, 0.28);
   outline-offset: 2px;
 }
 
@@ -71,4 +75,54 @@ button {
 
 .text-theme-muted {
   color: var(--muted);
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .report-print-area,
+  .report-print-area * {
+    visibility: visible !important;
+  }
+
+  .report-print-area {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  .report-markdown {
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .js-plotly-plot,
+  .plot-container,
+  .svg-container {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
 }

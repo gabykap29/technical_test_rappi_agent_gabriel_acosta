@@ -19,9 +19,15 @@ export const QUICK_QUESTIONS = {
   ],
 } as const;
 
-export const PROVIDERS: ProviderName[] = [
+export const CLOUD_MODE = process.env.CLOUD?.toLowerCase() === "true";
+
+const ALL_PROVIDERS: ProviderName[] = [
   "openai",
   "anthropic",
   "gemini",
   "ollama",
 ];
+
+export const PROVIDERS: ProviderName[] = CLOUD_MODE
+  ? ALL_PROVIDERS.filter((provider) => provider !== "ollama")
+  : ALL_PROVIDERS;

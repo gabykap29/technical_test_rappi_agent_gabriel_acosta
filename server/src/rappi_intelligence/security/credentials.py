@@ -136,6 +136,32 @@ class CredentialStore:
             return None
         return bytes(row["encrypted_api_key"])
 
+    def clear_api_keys(self, provider: str | None = None) -> int:
+        """Remove stored API keys while preserving provider settings."""
+
+        with self._connect() as connection:
+            if provider:
+                cursor = connection.execute(
+                    """
+                    UPDATE provider_credentials
+                    SET encrypted_api_key = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE provider = ?
+                      AND encrypted_api_key IS NOT NULL
+                    """,
+                    (provider.lower().strip(),),
+                )
+            else:
+                cursor = connection.execute(
+                    """
+                    UPDATE provider_credentials
+                    SET encrypted_api_key = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE encrypted_api_key IS NOT NULL
+                    """
+                )
+            return cursor.rowcount
+
     def _initialize(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:

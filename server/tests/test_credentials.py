@@ -59,6 +59,31 @@ def test_credentials_store_base_url_and_can_clear_key() -> None:
         rmtree(workspace_tmp, ignore_errors=True)
 
 
+def test_clear_api_keys_preserves_provider_settings() -> None:
+    workspace_tmp = Path(".test_artifacts") / uuid4().hex
+    workspace_tmp.mkdir(parents=True, exist_ok=True)
+    try:
+        store = CredentialStore(
+            db_path=workspace_tmp / "credentials.sqlite",
+            key_path=workspace_tmp / "fernet.key",
+        )
+        store.save_provider(
+            "openai",
+            "gpt-4o-mini",
+            "secret-value",
+            base_url="https://api.openai.com",
+        )
+
+        cleared = store.clear_api_keys()
+
+        assert cleared == 1
+        assert store.get_api_key("openai") is None
+        assert store.get_model("openai") == "gpt-4o-mini"
+        assert store.get_base_url("openai") == "https://api.openai.com"
+    finally:
+        rmtree(workspace_tmp, ignore_errors=True)
+
+
 def test_request_model_overrides_stored_provider_model() -> None:
     workspace_tmp = Path(".test_artifacts") / uuid4().hex
     workspace_tmp.mkdir(parents=True, exist_ok=True)

@@ -9,9 +9,6 @@ type FieldProps = {
 };
 
 export function Field({ label, help, children }: FieldProps) {
-  const { theme } = useContext(ThemeContext);
-  const isDark = theme === "dark";
-
   return (
     <label className="block">
       <span className="text-theme mb-1 block text-sm font-semibold">{label}</span>
@@ -27,7 +24,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
 
   return (
     <input
-      className={`text-theme focus-ring h-10 w-full rounded-lg border px-3 text-sm ${isDark ? 'border-gray-600 bg-gray-800' : 'border-[#cbd9d1] bg-white'}`}
+      className={`text-theme focus-ring h-10 w-full rounded-lg border px-3 text-sm ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white'}`}
       {...props}
     />
   );
@@ -39,7 +36,7 @@ export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
 
   return (
     <select
-      className={`text-theme focus-ring h-10 w-full rounded-lg border px-3 text-sm ${isDark ? 'border-gray-600 bg-gray-800' : 'border-[#cbd9d1] bg-white'}`}
+      className={`text-theme focus-ring h-10 w-full rounded-lg border px-3 text-sm ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white'}`}
       {...props}
     />
   );

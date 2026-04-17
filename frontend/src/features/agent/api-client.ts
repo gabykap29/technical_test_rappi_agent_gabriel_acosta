@@ -4,6 +4,9 @@ import type {
   DatasetOverview,
   ProviderConfigPayload,
   ProvidersResponse,
+  HistoryChunk,
+  ReportChart,
+  ReportMetadata,
 } from "@/types/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -47,15 +50,16 @@ export function askAgent(payload: ChatRequest): Promise<ChatResponse> {
   });
 }
 
-export type StreamHandler = (chunk: {
-  type: "table" | "chunk" | "error";
+type TableChunk = {
+  type: "table";
   content?: unknown;
   table?: Record<string, unknown>[];
   columns?: string[];
   suggestions?: string[];
   query?: string;
-  error?: string;
-}) => void;
+};
+
+export type StreamHandler = (chunk: TableChunk | HistoryChunk | ReportMetadata | ReportChart | { type: "chunk"; content: string } | { type: "error"; error: string }) => void;
 
 export function askAgentStream(
   payload: ChatRequest,

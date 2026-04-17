@@ -88,7 +88,7 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
     ),
     a: ({ href, children }: LinkProps) => (
       <a
-        className="break-words text-[#16834f] underline hover:text-[#126f40] dark:text-[#4ade80] dark:hover:text-[#22c55e]"
+        className="break-words text-[var(--accent)] underline hover:text-[var(--accent-strong)]"
         href={href}
       >
         {children}

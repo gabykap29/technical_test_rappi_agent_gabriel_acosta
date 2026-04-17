@@ -19,13 +19,13 @@ export function Button({
   const isDark = theme === "dark";
 
   const variantClasses: Record<ButtonVariant, string> = {
-    primary: "bg-[#16834f] text-white hover:bg-[#10683e]",
+    primary: "bg-[image:var(--accent-gradient)] text-white hover:brightness-95",
     secondary: isDark 
-      ? "text-theme border border-gray-600 bg-gray-800 hover:border-green-500"
-      : "text-theme border border-[#cbd9d1] bg-white hover:border-[#16834f]",
+      ? "text-theme border border-gray-600 bg-gray-800 hover:border-[var(--accent)]"
+      : "text-theme border border-[#f0c9b8] bg-white hover:border-[var(--accent)]",
     ghost: isDark 
       ? "text-theme hover:bg-gray-800"
-      : "text-theme hover:bg-[#e7f5ec]",
+      : "text-theme hover:bg-[var(--accent-soft)]",
   };
 
   return (

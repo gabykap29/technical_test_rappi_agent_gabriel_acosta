@@ -1,6 +1,6 @@
 """High-level conversational agent facade."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 
 from rappi_intelligence.analytics.query_engine import QueryEngine
 from rappi_intelligence.data.loader import load_dataset
@@ -41,11 +41,18 @@ class RappiOperationsAgent:
         """Return the pandas query used in the last ask() call."""
         return getattr(self.engine, "last_query", "")
 
-    async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
+    async def ask_stream(
+        self,
+        question: str,
+        conversation_history: Sequence[object] | None = None,
+    ) -> AsyncGenerator[str, None]:
         """Stream answer chunks when the selected engine supports it."""
 
         if hasattr(self.engine, "ask_stream"):
-            async for chunk in self.engine.ask_stream(question):
+            async for chunk in self.engine.ask_stream(
+                question,
+                conversation_history=conversation_history,
+            ):
                 yield chunk
             return
 
