@@ -257,10 +257,8 @@ def _metric(data: pd.DataFrame, metric: str) -> pd.DataFrame:
 
 def _safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
     threshold = 0.0001
-    safe_denominator = denominator.replace({0: pd.NA})
-    safe_denominator = safe_denominator.where(
-        safe_denominator.abs() >= threshold, pd.NA
-    )
+    mask = denominator.abs() < threshold
+    safe_denominator = denominator.replace({0: pd.NA}).where(~mask, pd.NA)
     return numerator.div(safe_denominator).fillna(0)
 
 

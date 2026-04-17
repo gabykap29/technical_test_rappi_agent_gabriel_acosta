@@ -144,8 +144,6 @@ class LangGraphOperationsAgent:
                 yield chunk.content
 
     def _build_graph(self):
-        from langgraph.graph import ADDITIONAL_EDGES
-
         graph = StateGraph(AgentState)
         graph.add_node("plan", self._plan)
         graph.add_node("execute", self._execute)
