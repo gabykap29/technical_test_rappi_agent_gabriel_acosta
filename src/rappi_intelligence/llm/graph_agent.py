@@ -144,15 +144,38 @@ class LangGraphOperationsAgent:
                 yield chunk.content
 
     def _build_graph(self):
+        from langgraph.graph import ADDITIONAL_EDGES
+
         graph = StateGraph(AgentState)
         graph.add_node("plan", self._plan)
         graph.add_node("execute", self._execute)
         graph.add_node("respond", self._respond)
         graph.add_node("report", self._generate_report)
         graph.set_entry_point("plan")
-        graph.add_edge("plan", "execute")
+
+        def should_run_report(state: AgentState) -> str:
+            plan = state.get("plan", {})
+            intent = plan.get("intent", "")
+            question = state.get("question", "").lower()
+            is_report = any(
+                keyword in question
+                for keyword in [
+                    "reporte",
+                    "executive report",
+                    "informe",
+                    "reporte de operaciones",
+                ]
+            )
+            if is_report or intent == "executive_report":
+                return "report"
+            return "execute"
+
+        graph.add_conditional_edges(
+            "plan", should_run_report, {"report": "report", "execute": "execute"}
+        )
         graph.add_edge("execute", "respond")
         graph.add_edge("respond", END)
+        graph.add_edge("report", END)
         return graph.compile()
 
     def generate_executive_report(self) -> str:
