@@ -4,7 +4,6 @@ import type {
   DatasetOverview,
   ProviderConfigPayload,
   ProvidersResponse,
-  ReportResponse,
 } from "@/types/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -50,7 +49,7 @@ export function askAgent(payload: ChatRequest): Promise<ChatResponse> {
 
 export type StreamHandler = (chunk: {
   type: "table" | "chunk" | "error";
-  content?: string;
+  content?: unknown;
   table?: Record<string, unknown>[];
   columns?: string[];
   suggestions?: string[];
@@ -98,7 +97,7 @@ export function askAgentStream(
             }
             try {
               const data = JSON.parse(line.slice(6));
-              onChunk(data);
+              onChunk(normalizeStreamChunk(data));
             } catch {
               // Ignore invalid event payloads.
             }
@@ -113,9 +112,43 @@ export function askAgentStream(
   });
 }
 
-export function getExecutiveReport(): Promise<ReportResponse> {
-  return request<ReportResponse>("/api/report", {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
+function normalizeStreamChunk(chunk: unknown): Parameters<StreamHandler>[0] {
+  if (!chunk || typeof chunk !== "object") {
+    return { type: "error", error: "Invalid stream chunk" };
+  }
+
+  const payload = chunk as Parameters<StreamHandler>[0];
+  if (payload.type === "chunk") {
+    return {
+      ...payload,
+      content: stringifyStreamContent(payload.content),
+    };
+  }
+
+  return payload;
+}
+
+function stringifyStreamContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content.map(stringifyStreamContent).join("");
+  }
+
+  if (content && typeof content === "object") {
+    const block = content as { text?: unknown; content?: unknown; value?: unknown };
+    if (typeof block.text === "string") {
+      return block.text;
+    }
+    if (typeof block.content === "string") {
+      return block.content;
+    }
+    if (typeof block.value === "string") {
+      return block.value;
+    }
+  }
+
+  return "";
 }

@@ -15,7 +15,7 @@ de insights ejecutivos.
 - Guardado local de API keys en SQLite cifrado con `cryptography` y Fernet.
 - Memoria conversacional simple para reutilizar metrica, pais o zona reciente.
 - Sugerencias proactivas para guiar al usuario no tecnico.
-- Reporte automatico en Markdown y HTML con anomalias, tendencias,
+- Reporte automatico en Markdown con anomalias, tendencias,
   benchmarking, correlaciones y oportunidades.
 - Interfaz web migrada a Next.js + React para preparar despliegue en Vercel.
 - API Python local con FastAPI para exponer agente, credenciales y reportes.
@@ -40,53 +40,6 @@ se prefiere usar CSV, crear una carpeta `data/` con:
 - `metrics_input.csv`
 - `orders.csv`
 - `metric_dictionary.csv` opcional
-
-## Uso CLI
-
-Guardar una API key cifrada:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider openai --model gpt-4o-mini --api-key "TU_API_KEY"
-```
-
-Configurar Ollama local:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider ollama --ollama-mode local --model llama3.1
-```
-
-Configurar Ollama Cloud:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --save-key --provider ollama --ollama-mode cloud --model llama3.1 --api-key "TU_OLLAMA_TOKEN"
-```
-
-Pregunta unica:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --provider openai --ask "Cuales son las 5 zonas con mayor Lead Penetration esta semana?"
-```
-
-Modo interactivo:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli
-```
-
-Generar reportes:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\python.exe -m rappi_intelligence.interfaces.cli --report
-```
-
-Los reportes se escriben en `reports/executive_report.md` y
-`reports/executive_report.html`.
 
 ## Uso Web Next.js
 
@@ -136,25 +89,6 @@ La app Next usa `RAPPI_API_BASE_URL` para apuntar al backend. Por defecto:
 ```text
 http://localhost:8000
 ```
-
-## Uso Streamlit Legacy
-
-La app Streamlit queda como referencia legacy mientras se completa la migracion:
-
-```powershell
-$env:PYTHONPATH = "src"
-.\env\Scripts\streamlit.exe run streamlit_app.py
-```
-
-En la sidebar:
-
-1. Elegir provider: `openai`, `anthropic`, `gemini` u `ollama`.
-2. Si el provider es `ollama`, elegir `Localhost` u `Ollama Cloud`.
-3. Confirmar o cambiar el modelo.
-4. Pegar API key si el provider la requiere. Ollama local no requiere key;
-   Ollama Cloud si requiere token.
-5. Click en `Save encrypted provider config`.
-6. Mantener activo `Use LangGraph LLM agent`.
 
 ## Preguntas de demo
 

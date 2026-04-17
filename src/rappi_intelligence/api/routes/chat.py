@@ -1,7 +1,8 @@
 """Agent chat routes."""
 
 import json
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -74,7 +75,8 @@ async def chat_stream(payload: ChatRequest):
         except LLMConfigurationError as exc:
             yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
         except Exception as exc:
-            yield f"data: {json.dumps({'type': 'error', 'error': f'Unexpected error: {str(exc)}'})}\n\n"
+            error_payload = {"type": "error", "error": f"Unexpected error: {exc}"}
+            yield f"data: {json.dumps(error_payload)}\n\n"
 
     return StreamingResponse(
         generate(),

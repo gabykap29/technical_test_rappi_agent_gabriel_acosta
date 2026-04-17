@@ -4,7 +4,6 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "data"
-REPORTS_DIR = ROOT_DIR / "reports"
 SECRETS_DIR = ROOT_DIR / ".secrets"
 FERNET_KEY_PATH = SECRETS_DIR / "fernet.key"
 SECRETS_DB_PATH = SECRETS_DIR / "credentials.sqlite"

@@ -1,6 +1,6 @@
 """High-level conversational agent facade."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from rappi_intelligence.analytics.query_engine import QueryEngine
 from rappi_intelligence.data.loader import load_dataset

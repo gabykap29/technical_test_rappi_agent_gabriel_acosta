@@ -1,9 +1,10 @@
 """LangGraph-powered agent that uses a configurable LLM provider."""
-
 from __future__ import annotations
 
+import asyncio
 import json
-from typing import Any, AsyncGenerator, TypedDict
+from collections.abc import AsyncGenerator
+from typing import Any, TypedDict
 
 import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -56,7 +57,6 @@ class LangGraphOperationsAgent:
         )
 
         if is_report_request:
-            import asyncio
 
             async def _get_report():
                 chunks = []
@@ -222,8 +222,10 @@ class LangGraphOperationsAgent:
             SystemMessage(
                 content=(
                     "Eres un asistente de análisis ejecutivo senior. "
-                    "Genera un reporte ejecutivo en formato MARKDOWN PURO (solo markdown, sin HTML). "
-                    "Usa: # para títulos, ## para subtítulos, **texto** para negritas, - para listas, "
+                    "Genera un reporte ejecutivo en formato MARKDOWN PURO "
+                    "(solo markdown, sin HTML). "
+                    "Usa: # para títulos, ## para subtítulos, **texto** para "
+                    "negritas, - para listas, "
                     "| Tabla | syntax | para tablas. "
                     "NO uses tags HTML como <div>, <table>, <pre>, etc. "
                     "Sé detallado y accionable."

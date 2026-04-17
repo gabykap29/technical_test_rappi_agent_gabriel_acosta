@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, createContext, useContext, type Dispatch, type SetStateAction } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Send, Moon, Sun, ChevronUp, ChevronDown, Settings } from "lucide-react";
+import { useEffect, useMemo, useState, createContext, useContext } from "react";
+import { AlertCircle, CheckCircle2, Loader2, Send, ChevronUp, Settings } from "lucide-react";
 
 import { DatasetMetrics } from "@/components/data/DatasetMetrics";
+import { DataChart } from "@/components/data/DataChart";
 import { EvidenceTable } from "@/components/data/EvidenceTable";
 import { MiniBarChart } from "@/components/data/MiniBarChart";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -77,10 +78,6 @@ export function OperationsDashboard() {
   const baseUrl = useMemo(() => {
     return provider === "ollama" ? getOllamaBaseUrl(ollamaMode) : null;
   }, [ollamaMode, provider]);
-
-  useEffect(() => {
-    void loadInitialData();
-  }, []);
 
   async function loadInitialData() {
     try {
@@ -259,51 +256,36 @@ export function OperationsDashboard() {
     }
   }
 
-  function handleReport() {
+  async function handleReport() {
     setLoading(true);
     setError(null);
     setReport("");
     setActiveTab("report");
 
-    const question = "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis";
-    const messageId = crypto.randomUUID();
+    const reportQuestion = "Genera el reporte ejecutivo con todas las anomalías, tendencias, oportunidades y análisis";
 
-    setMessages((current) => [
-      ...current,
-      {
-        id: messageId,
-        question,
-        response: {
-          answer: "",
-          table: [],
-          columns: [],
-          suggestions: [],
-          metadata: {},
-          query: "",
+    try {
+      await askAgentStream(
+        {
+          question: reportQuestion,
+          provider,
+          model,
+          base_url: baseUrl,
+          require_llm: useLlm,
         },
-      },
-    ]);
-
-    askAgentStream(
-      {
-        question,
-        provider: provider,
-        model: model,
-        base_url: baseUrl,
-        require_llm: useLlm,
-      },
-      (chunk) => {
-        if (chunk.type === "table") {
-          setReport((prev) => prev + (chunk.content || ""));
-        } else if (chunk.type === "chunk") {
-          setReport((prev) => prev + (chunk.content || ""));
-          setLoading(false);
-        } else if (chunk.type === "error") {
-          setError(chunk.error || "Unknown error");
-          setLoading(false);
-        }
-      }
-    );
+        (chunk) => {
+          if (chunk.type === "chunk" && typeof chunk.content === "string") {
+            setReport((current) => current + chunk.content);
+          } else if (chunk.type === "error") {
+            setError(chunk.error || "Unknown error");
+          }
+        },
+      );
+    } catch (requestError) {
+      setError(formatError(requestError));
+    } finally {
+      setLoading(false);
+    }
   }
 
   const savedProvider = providers?.saved.find((item) => item.provider === provider);
@@ -318,7 +300,7 @@ export function OperationsDashboard() {
         <AppHeader theme={theme} onToggleTheme={toggleTheme} />
         <DatasetMetrics overview={overview} loading={!overview && !error} />
 
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <section className="panel p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -460,7 +442,7 @@ export function OperationsDashboard() {
           </section>
         </aside>
 
-        <section className="panel min-h-[720px] p-4">
+        <section className="panel min-w-0 min-h-[720px] p-4">
           <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
             <TabButton active={activeTab === "ask"} onClick={() => setActiveTab("ask")}>
               Ask the agent
@@ -495,20 +477,20 @@ export function OperationsDashboard() {
           ) : null}
 
           {activeTab === "report" ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+            <div className="min-w-0 space-y-4">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold">Executive report</h2>
                   <p className="text-theme-muted text-sm">
                     Generado por IA con análisis de anomalías, tendencias y oportunidades.
                   </p>
                 </div>
-                <Button disabled={loading} onClick={handleReport} variant="primary">
+                <Button disabled={loading} onClick={() => void handleReport()} variant="primary">
                   {loading ? "Generating..." : "Generate report now"}
                 </Button>
               </div>
               {report ? (
-                <div className={`rounded-lg border p-4 max-h-[70vh] overflow-y-auto ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
+                <div className={`max-h-[70vh] min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border p-4 ${isDark ? "border-gray-700 bg-gray-800" : "border-[#d9e4dd] bg-white"}`}>
                   <MarkdownView markdown={report} />
                 </div>
               ) : (
@@ -576,11 +558,11 @@ function ChatPanel({
 
       <div className="space-y-4">
         {messages.map((message) => (
-          <article className={`rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
+          <article className={`min-w-0 overflow-hidden rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
             <p className={`mb-3 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-[#315246]'}`}>
               {message.question}
             </p>
-            <div className="text-theme mb-4 text-sm leading-6">
+            <div className="text-theme mb-4 min-w-0 text-sm leading-6">
               <MarkdownView markdown={message.streamingAnswer || message.response.answer} />
               {message.streamingAnswer !== undefined && (
                 <span className="animate-pulse">▊</span>
@@ -592,6 +574,10 @@ function ChatPanel({
                 columns={message.response.columns}
                 rows={message.response.table}
                 query={message.response.query}
+              />
+              <DataChart
+                columns={message.response.columns}
+                rows={message.response.table}
               />
               <MiniBarChart
                 columns={message.response.columns}

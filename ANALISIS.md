@@ -59,8 +59,7 @@ Providers soportados:
   intencion para follow-ups sin introducir una base de datos.
 - Insights explicables: cada hallazgo incluye categoria, severidad, detalle,
   evidencia y recomendacion accionable.
-- Reporte Markdown y HTML: Markdown es versionable y HTML es util para
-  presentacion ejecutiva.
+- Reporte Markdown: formato versionable y directo para la interfaz web.
 - Fallback deterministico: util para pruebas automatizadas y diagnostico cuando
   no hay provider configurado.
 - Frontend por capas: Next solo presenta y orquesta llamadas HTTP; Python sigue
@@ -103,13 +102,10 @@ flowchart TD
   preocupantes, benchmarking, correlaciones y oportunidades.
 - `rappi_intelligence.agents.operations_agent`: fachada stateful que expone
   `ask()` y construye LangGraph si hay provider configurado.
-- `rappi_intelligence.reports.rendering`: render de reportes Markdown/HTML.
+- `rappi_intelligence.reports.rendering`: render de reportes Markdown.
 - `rappi_intelligence.api.main`: ensamblado FastAPI.
 - `rappi_intelligence.api.routes`: rutas HTTP separadas por recurso.
 - `rappi_intelligence.api.schemas`: modelos Pydantic de requests.
-- `rappi_intelligence.interfaces.cli`: interfaz de linea de comandos para demo,
-  preguntas puntuales y generacion de reportes.
-- `streamlit_app.py`: interfaz legacy en Streamlit.
 - `frontend/src/app`: rutas Next, layout y API routes proxy.
 - `frontend/src/features/agent`: estado y flujos del agente en React.
 - `frontend/src/components`: componentes reutilizables de UI, tabla, metricas y

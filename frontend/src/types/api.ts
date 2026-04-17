@@ -46,7 +46,3 @@ export type ChatResponse = {
   metadata: Record<string, unknown>;
   query: string;
 };
-
-export type ReportResponse = {
-  markdown: string;
-};
