@@ -94,7 +94,7 @@ Levantar backend Python:
 
 ```powershell
 $env:PYTHONPATH = "src"
-.\env\Scripts\uvicorn.exe rappi_intelligence.api.main:app --reload --port 8000
+.\env\Scripts\uvicorn.exe main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Levantar frontend Next:
