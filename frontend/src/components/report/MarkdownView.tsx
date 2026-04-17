@@ -23,7 +23,12 @@ type LinkProps = {
 };
 
 export function MarkdownView({ markdown }: MarkdownViewProps) {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document !== "undefined") {
+      return document.documentElement.classList.contains("dark");
+    }
+    return false;
+  });
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.classList.contains("dark"));
@@ -32,6 +37,10 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => obs.disconnect();
   }, []);
+
+  if (!markdown) {
+    return <p className="text-theme-muted text-sm">No content to display.</p>;
+  }
 
   const components: Components = {
     h1: ({ children }: TagProps) => <h1 className="text-theme mb-3 mt-4 text-2xl font-bold">{children}</h1>,
