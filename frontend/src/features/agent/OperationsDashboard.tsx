@@ -528,10 +528,60 @@ function ChatPanel({
 }) {
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
+  const messagesEndRef = typeof window !== "undefined" ? require("react").useRef(null) : null;
+
+  require("react").useEffect(() => {
+    if (loading && messagesEndRef?.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [loading, messagesEndRef]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
+    <div className={`flex flex-col h-[calc(100vh-200px)] ${isDark ? 'bg-gray-900' : 'bg-[#f1f6f3]'}`}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {!messages.length ? (
+          <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? 'bg-gray-800' : 'bg-[#f1f6f3]'}`}>
+            Start with a demo question from the sidebar or type your own.
+          </p>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id} className="space-y-3">
+              <div className={`rounded-lg p-3 ${isDark ? 'bg-[#1d3528] border border-green-700' : 'bg-[#e7f5ec] border border-[#16834f]'}`}>
+                <p className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-[#16834f]'}`}>
+                  You: {message.question}
+                </p>
+              </div>
+              <article className={`min-w-0 overflow-hidden rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
+                <div className="text-theme mb-4 min-w-0 text-sm leading-6">
+                  <MarkdownView markdown={message.streamingAnswer || message.response.answer} />
+                  {loading && message.streamingAnswer !== undefined && (
+                    <span className="animate-pulse">▊</span>
+                  )}
+                </div>
+                <ResponseMetadata metadata={message.response.metadata} />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <EvidenceTable
+                    columns={message.response.columns}
+                    rows={message.response.table}
+                    query={message.response.query}
+                  />
+                  <DataChart
+                    columns={message.response.columns}
+                    rows={message.response.table}
+                  />
+                  <MiniBarChart
+                    columns={message.response.columns}
+                    rows={message.response.table}
+                  />
+                </div>
+              </article>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className={`flex gap-2 p-4 border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`}>
         <TextInput
           placeholder="Ask about rankings, trends, comparisons or problematic zones"
           value={question}
@@ -548,57 +598,6 @@ function ChatPanel({
         <Button disabled={!messages.length} onClick={() => setMessages([])}>
           Clear
         </Button>
-      </div>
-
-      {!messages.length ? (
-        <p className={`text-theme-muted rounded-lg p-4 text-sm ${isDark ? 'bg-gray-800' : 'bg-[#f1f6f3]'}`}>
-          Start with a demo question from the sidebar or type your own.
-        </p>
-      ) : null}
-
-      <div className="space-y-4">
-        {messages.map((message) => (
-          <article className={`min-w-0 overflow-hidden rounded-lg border p-4 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#d9e4dd] bg-white'}`} key={message.id}>
-            <p className={`mb-3 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-[#315246]'}`}>
-              {message.question}
-            </p>
-            <div className="text-theme mb-4 min-w-0 text-sm leading-6">
-              <MarkdownView markdown={message.streamingAnswer || message.response.answer} />
-              {message.streamingAnswer !== undefined && (
-                <span className="animate-pulse">▊</span>
-              )}
-            </div>
-            <ResponseMetadata metadata={message.response.metadata} />
-            <div className="grid gap-4 xl:grid-cols-2">
-              <EvidenceTable
-                columns={message.response.columns}
-                rows={message.response.table}
-                query={message.response.query}
-              />
-              <DataChart
-                columns={message.response.columns}
-                rows={message.response.table}
-              />
-              <MiniBarChart
-                columns={message.response.columns}
-                rows={message.response.table}
-              />
-            </div>
-            {message.response.suggestions.length ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {message.response.suggestions.map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    onClick={() => onSuggestion(suggestion)}
-                    variant="ghost"
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-          </article>
-        ))}
       </div>
     </div>
   );
